@@ -45,7 +45,7 @@
       {
         "provider": "github",
         "owner": "ark-daemon",
-        "repo": "codex-manager",
+        "repo": "codex-manager1",
         "releaseType": "draft"
       }
     ],
