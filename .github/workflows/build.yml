@@ -3,12 +3,7 @@ name: Build
 on:
   push:
     branches: [main]
-    tags: ['v*']
   workflow_dispatch:
-
-# Needed so electron-builder can upload assets to the GitHub Release on tag builds.
-permissions:
-  contents: write
 
 jobs:
   build:
@@ -39,16 +34,7 @@ jobs:
           sudo apt-get install -y libsecret-1-dev fakeroot rpm
       - run: npm ci
       - run: npm run build
-      # On a v* tag: build AND publish binaries to the GitHub Release for that tag.
-      # On main / manual runs: build only (CI sanity check, no publish).
-      - name: Build and publish (tagged release)
-        if: startsWith(github.ref, 'refs/tags/v')
-        run: npx electron-builder --${{ matrix.target }} --publish always
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - name: Build only (CI check)
-        if: "!startsWith(github.ref, 'refs/tags/v')"
-        run: npx electron-builder --${{ matrix.target }} --publish never
+      - run: npx electron-builder --${{ matrix.target }} --publish never
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - uses: actions/upload-artifact@v4
