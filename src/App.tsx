@@ -1,0 +1,592 @@
+import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  AppState,
+  ProfileActionInput,
+  ProfileImportPreview,
+  ProfileSummary,
+  SettingsUpdateInput,
+  StatusMessage
+} from "./shared/types";
+import { copyForLanguage, PSEUDO_LOCALE_STORAGE_KEY, readPseudoLocaleEnabled } from "./i18n";
+import {
+  buildStats,
+  errorMessage,
+  firstProfile,
+  firstProfileByCreatedAt,
+  getApi,
+  requireApi,
+  resolveTheme
+} from "./ui-utils";
+import { Sidebar } from "./components/Sidebar";
+import { AccountsPage } from "./components/AccountsPage";
+import { SettingsPage } from "./components/SettingsPage";
+import { StatusToast } from "./components/StatusToast";
+import { ImportPreviewModal } from "./components/ImportPreviewModal";
+import { LoginCaptureModal } from "./components/LoginCaptureModal";
+type View = "accounts" | "settings";
+type LoginFlowStatus = "idle" | "ready" | "waiting" | "error" | "saved";
+interface LoginModalState {
+  open: boolean;
+  captureId?: string;
+  authorizationUrl?: string;
+  status: LoginFlowStatus;
+  message?: string;
+  capture?: any;
+  profileName?: string;
+}
+export function App() {
+  const [state, setState] = useState<AppState | undefined>();
+  const [selected, setSelected] = useState<ProfileActionInput | undefined>();
+  const [view, setView] = useState<View>("accounts");
+  const [busy, setBusy] = useState<string | undefined>();
+  const [message, setMessage] = useState<StatusMessage | undefined>();
+  const [fatal, setFatal] = useState<string | undefined>();
+  const [loginModal, setLoginModal] = useState<LoginModalState>({ open: false, status: "idle" });
+  const [selectedAccountIds, setSelectedAccountIds] = useState<Set<string>>(() => new Set());
+  const [refreshingAll, setRefreshingAll] = useState(false);
+  const [importPreview, setImportPreview] = useState<ProfileImportPreview | null>(null);
+  const [autoSwitchSessionCount, setAutoSwitchSessionCount] = useState(0);
+  const [pseudoLocaleEnabled, setPseudoLocaleEnabled] = useState(() => readPseudoLocaleEnabled());
+  const previousActiveProfileIdRef = useRef<string | undefined>(undefined);
+  const manualSwitchInProgressRef = useRef(false);
+  const selectedProfile = useMemo(() => {
+    if (!state || !selected) {
+      return undefined;
+    }
+    return state.profiles.find((profile) => profile.id === selected.profileId);
+  }, [selected, state]);
+  const stats = useMemo(() => buildStats(state), [state]);
+  const copy = useMemo(() => copyForLanguage(state?.settings.language), [state?.settings.language]);
+  useEffect(() => {
+    const api = getApi();
+    if (!api) {
+      setFatal("Renderer bridge is not available. Preload may not have loaded.");
+      return;
+    }
+    // Security: when no OS keychain is available, prompt for a session
+    // passphrase and unlock BEFORE loading state, so the first auth read/write
+    // has key material and credentials are never persisted in the clear.
+    void (async () => {
+      try {
+        if (await api.needsPassphrase()) {
+          const pass = window.prompt("No system keychain was found. Set a session passphrase to encrypt your accounts (you'll re-enter it each launch):");
+          if (pass) {
+            await api.unlock({ passphrase: pass });
+          }
+        }
+      } catch {
+        // If the unlock probe fails, fall through to loadState; auth writes will
+        // surface a clear error if sealing is still unavailable.
+      }
+      await loadState();
+    })();
+    const cleanupFocus = api.focusProfile((input) => {
+      void loadState(false, false).then(() => setSelected(input));
+      setMessage({ kind: "info", text: "Focused Codex profile from notification." });
+    });
+    const cleanupState = api.stateChanged(() => {
+      void loadState(false, false);
+    });
+    return () => {
+      cleanupFocus();
+      cleanupState();
+    };
+  }, []);
+  useEffect(() => {
+    if (!state) {
+      return;
+    }
+    const resolvedTheme = resolveTheme(state.settings.theme);
+    document.documentElement.dataset.theme = resolvedTheme;
+    window.profileSwitcher?.setTheme?.(resolvedTheme);
+  }, [state?.settings.theme]);
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+    function handlePseudoLocaleShortcut(event: KeyboardEvent) {
+      if (!event.ctrlKey || !event.altKey || event.key.toLowerCase() !== "p") {
+        return;
+      }
+      event.preventDefault();
+      const next = !readPseudoLocaleEnabled();
+      window.localStorage.setItem(PSEUDO_LOCALE_STORAGE_KEY, next ? "1" : "0");
+      setPseudoLocaleEnabled(next);
+      void updateSettings({ language: next ? "pseudo" : "en" });
+    }
+    window.addEventListener("keydown", handlePseudoLocaleShortcut);
+    return () => window.removeEventListener("keydown", handlePseudoLocaleShortcut);
+  }, []);
+  useEffect(() => {
+    if (!state) {
+      return;
+    }
+    setSelectedAccountIds((current) => {
+      const validIds = new Set(state.profiles.map((profile) => profile.id));
+      const next = new Set([...current].filter((profileId) => validIds.has(profileId)));
+      return next.size === current.size ? current : next;
+    });
+  }, [state?.profiles]);
+  useEffect(() => {
+    if (!state) {
+      return;
+    }
+    const currentActiveProfileId = state.settings.activeProfileId;
+    const previousActiveProfileId = previousActiveProfileIdRef.current;
+    if (previousActiveProfileId && currentActiveProfileId && previousActiveProfileId !== currentActiveProfileId) {
+      if (manualSwitchInProgressRef.current) {
+        manualSwitchInProgressRef.current = false;
+      } else if (state.settings.autoSwitchEnabled) {
+        setAutoSwitchSessionCount((count) => count + 1);
+      }
+    }
+    previousActiveProfileIdRef.current = currentActiveProfileId;
+  }, [state?.settings.activeProfileId, state?.settings.autoSwitchEnabled]);
+  useEffect(() => {
+    if (!message) {
+      return;
+    }
+    const timeout = window.setTimeout(() => setMessage(undefined), message.kind === "error" ? 7000 : 3500);
+    return () => window.clearTimeout(timeout);
+  }, [message]);
+  async function loadState(refreshActiveUsage = true, showBusy = true) {
+    const api = getApi();
+    if (!api) {
+      setFatal("Renderer bridge is not available. Preload may not have loaded.");
+      return;
+    }
+    if (showBusy) {
+      setBusy("Loading profiles");
+    }
+    try {
+      let nextState = await api.getState();
+      const activeProfile = nextState.profiles.find((profile) => profile.isActive);
+      if (refreshActiveUsage && activeProfile && nextState.settings.autoRefreshQuota) {
+        await api.refreshUsage({ profileId: activeProfile.id });
+        nextState = await api.getState();
+      }
+      setState(nextState);
+      setSelected((current) => current ?? firstProfile(nextState));
+    } catch (error) {
+      setMessage({ kind: "error", text: errorMessage(error) });
+    } finally {
+      if (showBusy) {
+        setBusy(undefined);
+      }
+    }
+  }
+  async function runAction<T>(label: string, action: () => Promise<T>, after?: (result: T) => void | Promise<void>) {
+    setBusy(label);
+    setMessage(undefined);
+    try {
+      const result = await action();
+      await after?.(result);
+      setMessage({ kind: "success", text: `${label} finished.` });
+    } catch (error) {
+      setMessage({ kind: "error", text: errorMessage(error) });
+    } finally {
+      setBusy(undefined);
+    }
+  }
+  async function createProfile() {
+    const api = requireApi(setFatal);
+    if (!api) return;
+    setBusy("Preparing secure login");
+    try {
+      const session = await api.startLoginCapture();
+      setLoginModal({
+        open: true,
+        captureId: session.captureId,
+        authorizationUrl: session.authorizationUrl,
+        status: "ready",
+        message: "Ready - click Open Login Page to continue."
+      });
+    } catch (error) {
+      setMessage({ kind: "error", text: errorMessage(error) });
+    } finally {
+      setBusy(undefined);
+    }
+  }
+  async function openLoginPageFromModal() {
+    const api = requireApi(setFatal);
+    if (!api || !loginModal.captureId) return;
+    setLoginModal((current) => ({
+      ...current,
+      status: "waiting",
+      message: "Waiting for you to finish signing in..."
+    }));
+    try {
+      await api.openLoginCapture({ captureId: loginModal.captureId });
+      const capture = await api.waitLoginCapture({ captureId: loginModal.captureId });
+      setLoginModal((current) => ({
+        ...current,
+        status: "ready",
+        message: "Sign-in complete. Choose a display name to save this account.",
+        capture,
+        profileName: capture.suggestedName ?? capture.accountEmail ?? "Codex profile"
+      }));
+    } catch (error) {
+      const msg = errorMessage(error);
+      const isRecoverable =
+        msg.toLowerCase().includes("state mismatch") ||
+        msg.toLowerCase().includes("timed out");
+      if (isRecoverable) {
+        try {
+          const session = await api.startLoginCapture();
+          setLoginModal((current) => ({
+            ...current,
+            captureId: session.captureId,
+            authorizationUrl: session.authorizationUrl,
+            status: "ready",
+            message: "That login session expired. Please try again.",
+            capture: undefined
+          }));
+        } catch (freshError) {
+          setLoginModal((current) => ({
+            ...current,
+            status: "error",
+            message: errorMessage(freshError)
+          }));
+        }
+      } else {
+        setLoginModal((current) => ({
+          ...current,
+          status: "error",
+          message: msg
+        }));
+      }
+    }
+  }
+  async function saveLoginProfile() {
+    const api = requireApi(setFatal);
+    if (!api || !loginModal.capture) return;
+    setBusy("Saving account");
+    try {
+      const name = loginModal.profileName?.trim() || loginModal.capture.suggestedName || loginModal.capture.accountEmail || "Codex profile";
+      const nextState = await api.createProfile({ captureId: loginModal.capture.captureId, name });
+      setState(nextState);
+      setSelected(firstProfileByCreatedAt(nextState));
+      setLoginModal({ open: true, status: "saved", message: name });
+    } catch (error) {
+      setLoginModal((current) => ({
+        ...current,
+        status: "error",
+        message: errorMessage(error)
+      }));
+    } finally {
+      setBusy(undefined);
+    }
+  }
+  async function addAnotherAccount() {
+    const api = requireApi(setFatal);
+    if (!api) return;
+    setBusy("Preparing secure login");
+    try {
+      const session = await api.startLoginCapture();
+      setLoginModal({
+        open: true,
+        captureId: session.captureId,
+        authorizationUrl: session.authorizationUrl,
+        status: "ready",
+        message: "Ready - click Open Login Page to continue."
+      });
+    } catch (error) {
+      setLoginModal((current) => ({
+        ...current,
+        status: "error",
+        message: errorMessage(error)
+      }));
+    } finally {
+      setBusy(undefined);
+    }
+  }
+  async function cancelLoginModal() {
+    const api = requireApi(setFatal);
+    if (!api) return;
+    const captureId = loginModal.captureId;
+    setLoginModal({ open: false, status: "idle" });
+    if (!captureId) {
+      return;
+    }
+    try {
+      await api.cancelLoginCapture({ captureId });
+    } catch {
+      // Ignore cleanup errors when the session has already completed.
+    }
+  }
+  async function syncFromApp() {
+    const api = requireApi(setFatal);
+    if (!api) return;
+    const name = window.prompt("Name this imported Codex app session", "Codex current");
+    if (name === null) return;
+    await runAction("Sync from app", () => api.syncCurrentProfile({ name }), (nextState) => {
+      setState(nextState);
+      setSelected(firstProfileByCreatedAt(nextState));
+    });
+  }
+  async function switchProfile(profile: ProfileSummary) {
+    const api = requireApi(setFatal);
+    if (!api) return;
+    manualSwitchInProgressRef.current = true;
+    try {
+      await runAction("Switch profile", () => api.switchProfile({ profileId: profile.id }), async () => {
+        await loadState(false);
+        setSelected({ profileId: profile.id });
+      });
+    } finally {
+      manualSwitchInProgressRef.current = false;
+    }
+  }
+  async function refreshUsage(profile: ProfileSummary) {
+    const api = requireApi(setFatal);
+    if (!api) return;
+    await runAction("Refresh usage", () => api.refreshUsage({ profileId: profile.id }), () => {
+      void loadState(false);
+    });
+  }
+  async function refreshAll() {
+    if (!state || refreshingAll) return;
+    const api = requireApi(setFatal);
+    if (!api) return;
+    setRefreshingAll(true);
+    setMessage(undefined);
+    try {
+      await Promise.all(state.profiles.map(async (profile) => {
+        try {
+          await api.refreshUsage({ profileId: profile.id });
+        } catch {
+          // Keep the existing quota visible when an individual refresh fails.
+        }
+      }));
+      setState(await api.getState());
+    } finally {
+      setRefreshingAll(false);
+    }
+  }
+  async function backupProfile(profile: ProfileSummary) {
+    const api = requireApi(setFatal);
+    if (!api) return;
+    await runAction("Backup profile", () => api.backupProfile({ profileId: profile.id }), setState);
+  }
+  async function renameProfile(profile: ProfileSummary, name: string) {
+    const api = requireApi(setFatal);
+    if (!api) return;
+    await runAction("Rename profile", () => api.renameProfile({ profileId: profile.id, name }), setState);
+  }
+  async function deleteProfile(profile: ProfileSummary) {
+    const api = requireApi(setFatal);
+    if (!api) return;
+    await runAction("Delete profile", () => api.deleteProfile({ profileId: profile.id }), (nextState) => {
+      setState(nextState);
+      setSelected(firstProfile(nextState));
+    });
+  }
+  async function deleteSelectedProfiles() {
+    if (!state || selectedAccountIds.size === 0) return;
+    const api = requireApi(setFatal);
+    if (!api) return;
+    const selectedProfiles = state.profiles.filter((profile) => selectedAccountIds.has(profile.id));
+    const count = selectedProfiles.length;
+    if (count === 0) return;
+    await runAction("Delete selected profiles", async () => {
+      let nextState = state;
+      for (const profile of selectedProfiles) {
+        nextState = await api.deleteProfile({ profileId: profile.id });
+      }
+      return nextState;
+    }, (nextState) => {
+      setState(nextState);
+      setSelectedAccountIds(new Set());
+      setSelected(firstProfile(nextState));
+    });
+  }
+  function toggleAccountSelection(profileId: string) {
+    setSelectedAccountIds((current) => {
+      const next = new Set(current);
+      if (next.has(profileId)) {
+        next.delete(profileId);
+      } else {
+        next.add(profileId);
+      }
+      return next;
+    });
+  }
+  function toggleAllAccounts() {
+    if (!state) return;
+    setSelectedAccountIds((current) => {
+      if (current.size === state.profiles.length) {
+        return new Set();
+      }
+      return new Set(state.profiles.map((profile) => profile.id));
+    });
+  }
+  async function openProfileFolder(input: ProfileActionInput) {
+    const api = requireApi(setFatal);
+    if (!api) return;
+    await api.openProfileFolder(input);
+  }
+  async function exportProfiles() {
+    const api = requireApi(setFatal);
+    if (!api) return;
+    // Prompt for an optional passphrase. Blank = unencrypted (with the same
+    // portability as before); any value seals the export with AES-256-GCM.
+    const pass = window.prompt("Set a passphrase to encrypt this export (leave blank for unencrypted):");
+    if (pass === null) return; // cancelled
+    await runAction("Export profiles", () => api.exportProfiles({ passphrase: pass || undefined }), (result) => {
+      if (result.count > 0) {
+        setMessage({ kind: "success", text: `Exported ${result.count} profile${result.count === 1 ? "" : "s"}.` });
+      }
+    });
+  }
+  async function importProfiles() {
+    const api = requireApi(setFatal);
+    if (!api) return;
+    setBusy("Preview import");
+    try {
+      const preview = await api.previewImport();
+      if (!preview) return;
+      // Encrypted bundle: previewImport returns no profiles + encrypted flag.
+      // Prompt for the passphrase and import directly by path so we don't
+      // re-open the file dialog.
+      if (preview.encrypted && preview.profiles.length === 0) {
+        const pass = window.prompt("This export is encrypted. Enter its passphrase to import:");
+        if (!pass) return;
+        const { path } = preview;
+        await runAction("Import profiles", () => api.confirmImport({ path, passphrase: pass }), async (result) => {
+          await loadState(false);
+          setMessage({ kind: "success", text: `Imported ${result.count} profile${result.count === 1 ? "" : "s"}. Click USE on any profile to activate it.` });
+        });
+        return;
+      }
+      setImportPreview(preview);
+    } catch (err) {
+      setMessage({ kind: "error", text: err instanceof Error ? err.message : "Import failed." });
+    } finally {
+      setBusy(undefined);
+    }
+  }
+  async function confirmImportProfiles() {
+    const api = requireApi(setFatal);
+    if (!api || !importPreview) return;
+    const { path } = importPreview;
+    setImportPreview(null);
+    await runAction("Import profiles", () => api.confirmImport({ path }), async (result) => {
+      await loadState(false);
+      setMessage({ kind: "success", text: `Imported ${result.count} profile${result.count === 1 ? "" : "s"}. Click USE on any profile to activate it.` });
+    });
+  }
+  async function updateSettings(input: SettingsUpdateInput) {
+    const api = requireApi(setFatal);
+    if (!api) return;
+    setBusy("Save settings");
+    setMessage(undefined);
+    try {
+      const nextState = await api.updateSettings(input);
+      setState(nextState);
+      setMessage({ kind: "success", text: "Settings saved" });
+      window.setTimeout(() => {
+        setMessage((current) => current?.text === "Settings saved" ? undefined : current);
+      }, 2000);
+    } catch (error) {
+      setMessage({ kind: "error", text: errorMessage(error) });
+    } finally {
+      setBusy(undefined);
+    }
+  }
+  async function setServiceRunning(running: boolean) {
+    const api = requireApi(setFatal);
+    if (!api) return;
+    await runAction(running ? "Start service" : "Stop service", () => api.updateServiceState({ running }), setState);
+  }
+  async function openLogDirectory() {
+    const api = requireApi(setFatal);
+    if (!api) return;
+    await api.openLogDirectory();
+  }
+  if (fatal) {
+    return (
+      <main className="loading">
+        <div>
+          <h2>Startup Error</h2>
+          <p>{fatal}</p>
+          <p>{copy.startup.retry}</p>
+        </div>
+      </main>
+    );
+  }
+  if (!state) {
+    return <main className="loading">{copy.startup.loading}</main>;
+  }
+  return (
+    <div className="app-container">
+      <main className="workspace">
+        <Sidebar
+          state={state}
+          copy={copy}
+          view={view}
+          setView={setView}
+          autoSwitchSessionCount={autoSwitchSessionCount}
+          onUpdateSettings={updateSettings}
+          onSetServiceRunning={setServiceRunning}
+        />
+        <section className="main-panel">
+          {busy && <div className="busy">{busy}...</div>}
+          {view === "accounts" ? (
+            <AccountsPage
+              state={state}
+              copy={copy}
+              selectedProfile={selectedProfile}
+              stats={stats}
+              onCreateProfile={createProfile}
+              onSyncFromApp={syncFromApp}
+              onExportProfiles={exportProfiles}
+              onImportProfiles={importProfiles}
+              onRefreshAll={refreshAll}
+              refreshingAll={refreshingAll}
+              selectedAccountIds={selectedAccountIds}
+              onToggleAccountSelection={toggleAccountSelection}
+              onToggleAllAccounts={toggleAllAccounts}
+              onDeleteSelectedProfiles={deleteSelectedProfiles}
+              onSelectProfile={(profileId) => setSelected({ profileId })}
+              onSwitchProfile={switchProfile}
+              onRefreshUsage={refreshUsage}
+              onRenameProfile={renameProfile}
+              onDeleteProfile={deleteProfile}
+              onBackupProfile={backupProfile}
+              onOpenProfileFolder={(profile) => void openProfileFolder({ profileId: profile.id })}
+            />
+          ) : (
+            <SettingsPage
+              state={state}
+              copy={copy}
+              pseudoLocaleEnabled={pseudoLocaleEnabled}
+              onSave={updateSettings}
+              onOpenLogDirectory={openLogDirectory}
+            />
+          )}
+        </section>
+        {message && <StatusToast message={message} onClose={() => setMessage(undefined)} />}
+        {loginModal.open && (
+          <LoginCaptureModal
+            loginModal={loginModal}
+            copy={copy}
+            onAddAnother={addAnotherAccount}
+            onDone={() => setLoginModal({ open: false, status: "idle" })}
+            onOpenLoginPage={openLoginPageFromModal}
+            onSave={saveLoginProfile}
+            onCancel={cancelLoginModal}
+            onChangeProfileName={(name) => setLoginModal((current) => ({ ...current, profileName: name }))}
+          />
+        )}
+        {importPreview && (
+          <ImportPreviewModal
+            preview={importPreview}
+            copy={copy}
+            onConfirm={confirmImportProfiles}
+            onCancel={() => setImportPreview(null)}
+          />
+        )}
+      </main>
+    </div>
+  );
+}

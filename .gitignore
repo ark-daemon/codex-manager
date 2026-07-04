@@ -1,0 +1,25 @@
+node_modules/
+dist/
+dist-electron/
+release/
+out/
+.npm-cache/
+.electron-builder-cache/
+.playwright-mcp/
+.vite/
+*.log
+
+# Environment & secrets
+.env
+.env.*
+auth.json
+*.local
+
+# Code-signing certificates
+*.pem
+*.p12
+*.pfx
+
+# OS metadata
+.DS_Store
+Thumbs.db
