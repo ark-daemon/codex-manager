@@ -1,6 +1,6 @@
 {
  "name": "codex-manager",
- "version": "0.1.2",
+ "version": "0.1.3",
  "private": true,
  "description": "Cross-platform (Windows, macOS, Linux) desktop account profile switcher for Codex.",
  "main": "dist-electron/electron/main.js",

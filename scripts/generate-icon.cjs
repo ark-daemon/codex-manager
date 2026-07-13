@@ -76,16 +76,18 @@ function crc32(buffer) {
 
 function renderIcon(size) {
   const rgba = Buffer.alloc(size * size * 4);
-  fillRect(rgba, size, 0, 0, size, size, [10, 10, 10, 255]);
+  fillRect(rgba, size, 0, 0, size, size, [15, 15, 18, 255]);
 
   const s = size / 24;
-  const white = [250, 250, 250, 255];
-  const orange = [255, 61, 0, 255];
-  const stroke = Math.max(1.25, 2 * s);
+  const gold = [245, 158, 11, 255]; // #F59E0B
+  const goldLight = [251, 191, 36, 255]; // #FBBF24
+  const stroke = Math.max(1.4, 2 * s);
 
-  drawPath(rgba, size, [[8, 3], [12, 11], [17, 6], [22, 21], [2, 21], [8, 3]], white, stroke, s);
-  drawPath(rgba, size, [[4.14, 15.08], [6.76, 13.51], [9.38, 13.51], [12, 15.08], [14.62, 16.65], [17.24, 16.65], [19.86, 15.08]], white, stroke, s);
-  fillRect(rgba, size, 3 * s, 21 * s, 18 * s, 1.5 * s, orange);
+  drawPath(rgba, size, [[4.5, 20], [21, 20], [21, 16.5], [18.8, 15.3], [18.8, 13.7], [21, 12.5], [21, 9], [4.3, 9], [4.5, 20]], gold, stroke, s);
+  drawPath(rgba, size, [[21, 9], [16.2, 6.4], [11.6, 4], [8, 5.3], [5.3, 7.4], [4.3, 11], [4.3, 14.3]], gold, stroke, s);
+  drawCircle(rgba, size, 15 * s, 14.5 * s, 1.8 * s, goldLight);
+  drawCircle(rgba, size, 8.5 * s, 14.2 * s, 1.6 * s, goldLight);
+  drawCircle(rgba, size, 11.5 * s, 17 * s, 1.3 * s, goldLight);
 
   return png(size, size, rgba);
 }
