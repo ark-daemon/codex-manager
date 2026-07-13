@@ -23,6 +23,7 @@ import { SettingsPage } from "./components/SettingsPage";
 import { StatusToast } from "./components/StatusToast";
 import { ImportPreviewModal } from "./components/ImportPreviewModal";
 import { LoginCaptureModal } from "./components/LoginCaptureModal";
+import { PromptModal, type PromptModalConfig } from "./components/PromptModal";
 type View = "accounts" | "settings";
 type LoginFlowStatus = "idle" | "ready" | "waiting" | "error" | "saved";
 interface LoginModalState {
@@ -42,6 +43,7 @@ export function App() {
   const [message, setMessage] = useState<StatusMessage | undefined>();
   const [fatal, setFatal] = useState<string | undefined>();
   const [loginModal, setLoginModal] = useState<LoginModalState>({ open: false, status: "idle" });
+  const [promptModal, setPromptModal] = useState<PromptModalConfig | null>(null);
   const [selectedAccountIds, setSelectedAccountIds] = useState<Set<string>>(() => new Set());
   const [refreshingAll, setRefreshingAll] = useState(false);
   const [importPreview, setImportPreview] = useState<ProfileImportPreview | null>(null);
@@ -69,10 +71,27 @@ export function App() {
     void (async () => {
       try {
         if (await api.needsPassphrase()) {
-          const pass = window.prompt("No system keychain was found. Set a session passphrase to encrypt your accounts (you'll re-enter it each launch):");
-          if (pass) {
-            await api.unlock({ passphrase: pass });
-          }
+          setPromptModal({
+            open: true,
+            title: "Session Passphrase Required",
+            description: "No system keychain was found. Set a session passphrase to encrypt your accounts (you'll re-enter it each launch):",
+            inputLabel: "Session Passphrase",
+            placeholder: "Enter passphrase",
+            inputType: "password",
+            confirmText: "Unlock",
+            onSubmit: async (pass) => {
+              setPromptModal(null);
+              if (pass) {
+                await api.unlock({ passphrase: pass });
+              }
+              await loadState();
+            },
+            onCancel: () => {
+              setPromptModal(null);
+              void loadState();
+            }
+          });
+          return;
         }
       } catch {
         // If the unlock probe fails, fall through to loadState; auth writes will
@@ -175,13 +194,18 @@ export function App() {
       }
     }
   }
-  async function runAction<T>(label: string, action: () => Promise<T>, after?: (result: T) => void | Promise<void>) {
+  async function runAction<T>(label: string, action: () => Promise<T>, after?: (result: T) => void | boolean | Promise<void | boolean>) {
     setBusy(label);
     setMessage(undefined);
     try {
       const result = await action();
-      await after?.(result);
-      setMessage({ kind: "success", text: `${label} finished.` });
+      if (result && typeof result === "object" && "count" in result && (result as { count: number }).count === 0) {
+        return;
+      }
+      const customHandled = await after?.(result);
+      if (customHandled !== true) {
+        setMessage({ kind: "success", text: `${label} finished.` });
+      }
     } catch (error) {
       setMessage({ kind: "error", text: errorMessage(error) });
     } finally {
@@ -317,11 +341,24 @@ export function App() {
   async function syncFromApp() {
     const api = requireApi(setFatal);
     if (!api) return;
-    const name = window.prompt("Name this imported Codex app session", "Codex current");
-    if (name === null) return;
-    await runAction("Sync from app", () => api.syncCurrentProfile({ name }), (nextState) => {
-      setState(nextState);
-      setSelected(firstProfileByCreatedAt(nextState));
+    setPromptModal({
+      open: true,
+      title: "Name Imported Session",
+      description: "Name this imported Codex app session",
+      inputLabel: "Profile Name",
+      defaultValue: "Codex current",
+      placeholder: "Codex current",
+      inputType: "text",
+      confirmText: "Sync",
+      onSubmit: async (name) => {
+        setPromptModal(null);
+        await runAction("Sync from app", () => api.syncCurrentProfile({ name: name.trim() || "Codex current" }), (nextState) => {
+          setState(nextState);
+          setSelected(firstProfileByCreatedAt(nextState));
+          return false;
+        });
+      },
+      onCancel: () => setPromptModal(null)
     });
   }
   async function switchProfile(profile: ProfileSummary) {
@@ -428,14 +465,25 @@ export function App() {
   async function exportProfiles() {
     const api = requireApi(setFatal);
     if (!api) return;
-    // Prompt for an optional passphrase. Blank = unencrypted (with the same
-    // portability as before); any value seals the export with AES-256-GCM.
-    const pass = window.prompt("Set a passphrase to encrypt this export (leave blank for unencrypted):");
-    if (pass === null) return; // cancelled
-    await runAction("Export profiles", () => api.exportProfiles({ passphrase: pass || undefined }), (result) => {
-      if (result.count > 0) {
-        setMessage({ kind: "success", text: `Exported ${result.count} profile${result.count === 1 ? "" : "s"}.` });
-      }
+    setPromptModal({
+      open: true,
+      title: "Export Codex account pool",
+      description: "Set a passphrase to encrypt this export (leave blank for unencrypted):",
+      inputLabel: "Passphrase (optional)",
+      placeholder: "Leave blank for unencrypted",
+      inputType: "password",
+      confirmText: "Export",
+      onSubmit: async (pass) => {
+        setPromptModal(null);
+        await runAction("Export profiles", () => api.exportProfiles({ passphrase: pass || undefined }), (result) => {
+          if (result && typeof result === "object" && "count" in result && (result as { count: number }).count > 0) {
+            setMessage({ kind: "success", text: `Exported ${(result as { count: number }).count} profile${(result as { count: number }).count === 1 ? "" : "s"}.` });
+            return true;
+          }
+          return false;
+        });
+      },
+      onCancel: () => setPromptModal(null)
     });
   }
   async function importProfiles() {
@@ -449,12 +497,25 @@ export function App() {
       // Prompt for the passphrase and import directly by path so we don't
       // re-open the file dialog.
       if (preview.encrypted && preview.profiles.length === 0) {
-        const pass = window.prompt("This export is encrypted. Enter its passphrase to import:");
-        if (!pass) return;
         const { path } = preview;
-        await runAction("Import profiles", () => api.confirmImport({ path, passphrase: pass }), async (result) => {
-          await loadState(false);
-          setMessage({ kind: "success", text: `Imported ${result.count} profile${result.count === 1 ? "" : "s"}. Click USE on any profile to activate it.` });
+        setPromptModal({
+          open: true,
+          title: "Import Encrypted Profiles",
+          description: "This export is encrypted. Enter its passphrase to import:",
+          inputLabel: "Passphrase",
+          placeholder: "Enter export passphrase",
+          inputType: "password",
+          confirmText: "Import",
+          onSubmit: async (pass) => {
+            setPromptModal(null);
+            if (!pass) return;
+            await runAction("Import profiles", () => api.confirmImport({ path, passphrase: pass }), async (result) => {
+              await loadState(false);
+              setMessage({ kind: "success", text: `Imported ${result.count} profile${result.count === 1 ? "" : "s"}. Click USE on any profile to activate it.` });
+              return true;
+            });
+          },
+          onCancel: () => setPromptModal(null)
         });
         return;
       }
@@ -586,6 +647,7 @@ export function App() {
             onCancel={() => setImportPreview(null)}
           />
         )}
+        <PromptModal config={promptModal} copy={copy} />
       </main>
     </div>
   );
