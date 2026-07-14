@@ -139,7 +139,7 @@ function setPixel(rgba, size, x, y, color) {
   rgba[offset + 3] = color[3];
 }
 
-const sizes = [16, 32, 48, 64, 128, 256];
+const sizes = [16, 32, 48, 64, 128, 256, 512];
 const images = sizes.map((size) => {
   const data = renderIcon(size);
   fs.writeFileSync(path.join(process.cwd(), "public", `hamburger-${size}.png`), data);
@@ -147,10 +147,10 @@ const images = sizes.map((size) => {
 });
 
 fs.mkdirSync(path.join(process.cwd(), "build"), { recursive: true });
-fs.writeFileSync(path.join(process.cwd(), "build", "icon.ico"), ico(images));
+fs.writeFileSync(path.join(process.cwd(), "build", "icon.ico"), ico(images.filter(i => i.size <= 256)));
 
-// Copy the 256x256 render to assets/icon.png so the runtime window icon
-// matches the build ICO exactly.
-fs.writeFileSync(path.join(process.cwd(), "assets", "icon.png"), images.find((i) => i.size === 256)?.data ?? images[images.length - 1].data);
+// Copy the 512x512 render to assets/icon.png so the macOS electron-builder
+// is happy (it requires at least 512x512).
+fs.writeFileSync(path.join(process.cwd(), "assets", "icon.png"), images.find((i) => i.size === 512)?.data ?? images[images.length - 1].data);
 
 console.log("Icons generated successfully.");
