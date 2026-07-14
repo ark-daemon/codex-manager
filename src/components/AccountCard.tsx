@@ -206,8 +206,8 @@ export const AccountCard = memo(function AccountCard({
  if (e.key === "Escape") cancelRename(e as any);
  }}
  />
- <button className="confirm" onClick={confirmRename}>\u2713</button>
- <button className="cancel" onClick={cancelRename}>\u2717</button>
+ <button className="confirm" onClick={confirmRename}>✓</button>
+ <button className="cancel" onClick={cancelRename}>✗</button>
  </div>
  ) : (
  <h4 className="profile-display-name">{displayPrimaryLabel(profile)}</h4>
