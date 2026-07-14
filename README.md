@@ -3,7 +3,7 @@
 
   # Codex Manager
 
-  **Multi-account session manager for OpenAI Codex CLI**
+  **Multi-account session manager for OpenAI Codex**
 
   [![Release](https://img.shields.io/github/v/release/ark-daemon/codex-manager?style=flat-square)](https://github.com/ark-daemon/codex-manager/releases)
   [![Build](https://img.shields.io/github/actions/workflow/status/ark-daemon/codex-manager/release.yml?style=flat-square&label=Build)](https://github.com/ark-daemon/codex-manager/actions)
