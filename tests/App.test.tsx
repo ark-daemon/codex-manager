@@ -349,26 +349,20 @@ describe("App", () => {
  expect(menu?.parentElement).toBe(document.body);
  expect(menu).toHaveStyle({ position: "fixed", zIndex: "9999" });
  });
- it("shows a critical active-account warning at five percent quota", async () => {
- window.profileSwitcher = fakeApi(accountsState([
- profileFixture("active", "Active Low", "active-low@example.com", 5, true)
- ]));
+ it("shows Rate Limited on active exhausted accounts without the old banner", async () => {
+ const activeLow = profileFixture("active", "Active Low", "active-low@example.com", 0, true);
+ if (activeLow.usage?.pools?.[0]) {
+ activeLow.usage.pools[0].status = "exhausted";
+ }
+ window.profileSwitcher = fakeApi(accountsState([activeLow]));
  render(<App />);
- expect(await screen.findByText("Quota exhausted, switch to a ready account")).toBeInTheDocument();
+ expect(await screen.findByText("Active Low")).toBeInTheDocument();
+ expect(screen.queryByText("Quota exhausted, switch to a ready account")).not.toBeInTheDocument();
+ expect(screen.getAllByText("Rate Limited").length).toBeGreaterThanOrEqual(1);
  const card = screen.getByText("Active Low").closest(".account-card");
- // Low (5%) quota is amber \u2014 a warning, not the alarm-red we reserve for failures.
+ // Exhausted quota is amber \u2014 a waiting state, not the alarm-red reserved for failures.
  expect(card?.querySelector(".quota-value")).toHaveStyle({ color: "#f59e0b" });
  expect(card?.querySelector(".bar span")).toHaveStyle({ background: "#f59e0b" });
- });
- it.skip("uses an inline warning icon instead of the exhausted banner in compact view", async () => {
- window.profileSwitcher = fakeApi(accountsState([
- profileFixture("active", "Active Compact Low", "active-compact-low@example.com", 5, true)
- ]));
- render(<App />);
- expect(await screen.findByText("Quota exhausted — switch to a ready account")).toBeInTheDocument();
- fireEvent.click(screen.getByTitle("Compact view"));
- expect(screen.queryByText("Quota exhausted — switch to a ready account")).not.toBeInTheDocument();
- expect(screen.getByLabelText("Quota exhausted")).toBeInTheDocument();
  });
  it("uses accent orange for healthy high percentage quota bars", async () => {
  window.profileSwitcher = fakeApi(accountsState([

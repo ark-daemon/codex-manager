@@ -54,10 +54,11 @@ export class CrossPlatformProcessManager implements ProcessManager {
       throw new Error(`Codex executable is not accessible: ${executablePath}. ${detail}`);
     });
 
-    console.info(`[ProcessManager] launching Codex from: ${executablePath}`);
+    const appLabel = definition?.displayName ?? "Codex/ChatGPT";
+    console.info(`[ProcessManager] launching ${appLabel} from: ${executablePath}${definition?.msixAumid ? ` (MSIX ${definition.msixAumid})` : ""}`);
     await this.launchWithShell(executablePath, definition?.msixAumid);
     if (await this.confirmRunning(definition)) {
-      console.info(`[ProcessManager] Codex process confirmed running.`);
+      console.info(`[ProcessManager] ${appLabel} process confirmed running.`);
       return;
     }
 
@@ -71,11 +72,11 @@ export class CrossPlatformProcessManager implements ProcessManager {
     }
 
     // Profile files are already swapped - log a warning but do not block the
-    // user. Codex may appear shortly after the confirmation window closes.
+    // user. The app may appear shortly after the confirmation window closes.
     console.warn(
-      `[ProcessManager] Codex launched from ${executablePath} but ` +
+      `[ProcessManager] ${appLabel} launched from ${executablePath} but ` +
       `${definition?.processNames.join(" or ") ?? "the process"} was not yet ` +
-      `visible in the process list after the confirmation window. Codex may still be starting.`
+      `visible in the process list after the confirmation window. It may still be starting.`
     );
   }
 

@@ -6,6 +6,7 @@ import { execFileSync } from "node:child_process";
 
 // Cache so PowerShell is invoked at most once per process lifetime.
 let _msixAumidCache: string | null | undefined = undefined;
+let _msixExecutableCache: string[] | undefined = undefined;
 const require = createRequire(import.meta.url);
 
 export interface EnvPaths {
@@ -160,18 +161,26 @@ export function getDefaultExecutablePath(env: EnvPaths = getEnvPaths()): string 
 export function getCodexExecutableCandidates(env: EnvPaths = getEnvPaths()): string[] {
   if (process.platform === "win32") {
     return [
+      // OpenAI rebranded the desktop shell to ChatGPT.exe (MSIX still ships as OpenAI.Codex).
+      path.join(env.localAppData, "Programs", "ChatGPT", "ChatGPT.exe"),
+      path.join(env.localAppData, "ChatGPT", "ChatGPT.exe"),
+      path.join(env.localAppData, "Programs", "OpenAI ChatGPT", "ChatGPT.exe"),
       path.join(env.localAppData, "Programs", "Codex", "Codex.exe"),
       path.join(env.localAppData, "Codex", "Codex.exe"),
       path.join(env.localAppData, "Programs", "OpenAI Codex", "Codex.exe"),
       ...discoverOpenAICodexBinExecutables(env),
       path.join(env.appData, "Codex", "Codex.exe"),
-      path.join(env.localAppData, "Microsoft", "WindowsApps", "Codex.exe")
+      path.join(env.localAppData, "Microsoft", "WindowsApps", "ChatGPT.exe"),
+      path.join(env.localAppData, "Microsoft", "WindowsApps", "Codex.exe"),
+      ...discoverMsixAppExecutables()
     ];
   }
 
   if (process.platform === "darwin") {
     return [
+      "/Applications/ChatGPT.app/Contents/MacOS/ChatGPT",
       "/Applications/Codex.app/Contents/MacOS/Codex",
+      path.join(env.userProfile, "Applications", "ChatGPT.app", "Contents", "MacOS", "ChatGPT"),
       path.join(env.userProfile, "Applications", "Codex.app", "Contents", "MacOS", "Codex"),
       path.join(env.userProfile, ".local", "bin", "codex"),
       "/usr/local/bin/codex",
@@ -195,9 +204,12 @@ function detectCodexExecutablePath(env: EnvPaths): string {
 }
 
 /**
- * Detect if Codex is installed as an MSIX/Store package and return its AUMID.
+ * Detect if Codex/ChatGPT is installed as an MSIX/Store package and return its AUMID.
  * Result is cached so PowerShell is only invoked once per process lifetime.
- * Returns undefined if Codex is not installed as MSIX or if detection fails.
+ * Returns undefined if not installed as MSIX or if detection fails.
+ *
+ * Package identity is still `OpenAI.Codex`, but the entry executable is
+ * `app/ChatGPT.exe` after the 2026 desktop rebrand.
  */
 function detectCodexMsixAumid(): string | undefined {
   if (_msixAumidCache !== undefined) {
@@ -206,12 +218,15 @@ function detectCodexMsixAumid(): string | undefined {
   try {
     const pfn = execFileSync("powershell.exe", [
       "-NoProfile", "-NonInteractive", "-Command",
-      "Get-AppxPackage -Name 'OpenAI.Codex' -ErrorAction SilentlyContinue | Select-Object -ExpandProperty PackageFamilyName -First 1"
+      // Prefer the historical Codex package name; fall back to ChatGPT if renamed.
+      "$pkg = Get-AppxPackage -Name 'OpenAI.Codex' -ErrorAction SilentlyContinue | Select-Object -First 1; " +
+      "if (-not $pkg) { $pkg = Get-AppxPackage -Name 'OpenAI.ChatGPT' -ErrorAction SilentlyContinue | Select-Object -First 1 }; " +
+      "if ($pkg) { $pkg.PackageFamilyName }"
     ], { encoding: "utf8", timeout: 10_000 }).trim();
 
     if (pfn) {
       const aumid = `${pfn}!App`;
-      console.info(`[Paths] Detected Codex MSIX package: ${aumid}`);
+      console.info(`[Paths] Detected Codex/ChatGPT MSIX package: ${aumid}`);
       _msixAumidCache = aumid;
       return aumid;
     }
@@ -220,6 +235,45 @@ function detectCodexMsixAumid(): string | undefined {
   }
   _msixAumidCache = null; // null = "checked, not found"
   return undefined;
+}
+
+/**
+ * Locate ChatGPT.exe / Codex.exe inside the installed OpenAI MSIX package.
+ * WindowsApps is ACL-restricted for some operations, so existence checks may
+ * fail even when the package is installed — callers should prefer AUMID launch.
+ */
+function discoverMsixAppExecutables(): string[] {
+  if (process.platform !== "win32") {
+    return [];
+  }
+  if (_msixExecutableCache !== undefined) {
+    return _msixExecutableCache;
+  }
+  try {
+    const installLocation = execFileSync("powershell.exe", [
+      "-NoProfile", "-NonInteractive", "-Command",
+      "$pkg = Get-AppxPackage -Name 'OpenAI.Codex' -ErrorAction SilentlyContinue | Select-Object -First 1; " +
+      "if (-not $pkg) { $pkg = Get-AppxPackage -Name 'OpenAI.ChatGPT' -ErrorAction SilentlyContinue | Select-Object -First 1 }; " +
+      "if ($pkg) { $pkg.InstallLocation }"
+    ], { encoding: "utf8", timeout: 10_000 }).trim();
+
+    if (!installLocation) {
+      _msixExecutableCache = [];
+      return _msixExecutableCache;
+    }
+
+    const candidates = [
+      path.join(installLocation, "app", "ChatGPT.exe"),
+      path.join(installLocation, "app", "Codex.exe"),
+      path.join(installLocation, "ChatGPT.exe"),
+      path.join(installLocation, "Codex.exe")
+    ];
+    _msixExecutableCache = candidates.filter((candidate) => fs.existsSync(candidate));
+    return _msixExecutableCache;
+  } catch {
+    _msixExecutableCache = [];
+    return _msixExecutableCache;
+  }
 }
 
 function discoverOpenAICodexBinExecutables(env: EnvPaths): string[] {
@@ -244,11 +298,33 @@ function discoverOpenAICodexBinExecutables(env: EnvPaths): string[] {
     });
 }
 
+/**
+ * Process names used to detect/close the desktop app during account switches.
+ *
+ * After the 2026 OpenAI rebrand, the Windows GUI process is `ChatGPT.exe`
+ * while the agent helper remains `codex.exe`. Both must be matched — otherwise
+ * Codex Manager thinks the app is stopped while ChatGPT is still holding
+ * ~/.codex open, and the switch races into a crash.
+ */
 function getCodexProcessNames(): string[] {
   if (process.platform === "win32") {
-    return ["Codex.exe", "codex.exe"];
+    return [
+      "ChatGPT.exe",
+      "chatgpt.exe",
+      "Codex.exe",
+      "codex.exe"
+    ];
   }
-  return ["Codex", "codex"];
+  return ["ChatGPT", "chatgpt", "Codex", "codex"];
+}
+
+/**
+ * Allowed executable basenames for Settings > Executable path validation.
+ * Accepts both the historical Codex binary and the rebranded ChatGPT shell.
+ */
+export function isAllowedCodexExecutableBasename(fileName: string): boolean {
+  const basename = fileName.trim().toLowerCase().replace(/\.exe$/i, "");
+  return basename === "codex" || basename === "chatgpt";
 }
 
 function resolveHomeDirectory(env: NodeJS.ProcessEnv): string {

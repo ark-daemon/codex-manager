@@ -24,7 +24,7 @@ import { emailFromJwt, findEmail, isEmail, parseJwtPayload, primaryPool, quotaPe
 import { CodexLoginCaptureService } from "./codexLoginCaptureService.js";
 import { CodexAuthJson, mirrorCodexProfile } from "./codexProfileMirror.js";
 import { copyManagedFromLive, copyManagedLiveToBackup, copyProfileToBackup, restoreManagedToLive } from "./filePlan.js";
-import { getAppDefinition, getCodexExecutableCandidates, getDefaultExecutablePath } from "./paths.js";
+import { getAppDefinition, getCodexExecutableCandidates, getDefaultExecutablePath, isAllowedCodexExecutableBasename } from "./paths.js";
 import type { AppDefinition } from "./paths.js";
 import { ProcessManager } from "./processManager.js";
 import { normalizeLowQuotaThreshold, normalizePollingInterval, normalizeSyncInterval, normalizeThreshold, SettingsStore } from "./settingsStore.js";
@@ -508,10 +508,9 @@ export class ProfileStore {
     await this.settingsStore.update((settings) => {
       if (input.executablePath !== undefined) {
         if (input.executablePath) {
-          const basename = path.basename(input.executablePath).toLowerCase();
-          const validBasenames = ["codex", "codex.exe"];
-          if (!validBasenames.includes(basename)) {
-            throw new Error("Invalid executable path: File name must be 'Codex' or 'Codex.exe'");
+          const basename = path.basename(input.executablePath);
+          if (!isAllowedCodexExecutableBasename(basename)) {
+            throw new Error("Invalid executable path: File name must be 'Codex', 'Codex.exe', 'ChatGPT', or 'ChatGPT.exe'");
           }
         }
         settings.executablePath = input.executablePath;

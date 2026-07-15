@@ -150,7 +150,16 @@ describe("ProfileStore profile lifecycle", () => {
  const store = makeStore();
  await store.initialize();
  await expect(store.updateSettings({ executablePath: "/path/to/malicious.exe" }))
- .rejects.toThrow("Invalid executable path: File name must be 'Codex' or 'Codex.exe'");
+ .rejects.toThrow("Invalid executable path: File name must be 'Codex', 'Codex.exe', 'ChatGPT', or 'ChatGPT.exe'");
+ });
+ it("accepts ChatGPT.exe as a valid executable path after the desktop rebrand", async () => {
+ const store = makeStore();
+ await store.initialize();
+ const chatGptPath = process.platform === "win32"
+   ? "C:\\Apps\\ChatGPT\\ChatGPT.exe"
+   : "/Applications/ChatGPT.app/Contents/MacOS/ChatGPT";
+ await store.updateSettings({ executablePath: chatGptPath });
+ expect((await store.getState()).settings.executablePath).toBe(chatGptPath);
  });
 });
 describe("ProfileStore switch flow", () => {

@@ -912,9 +912,13 @@ h1, h2, h3, h4, h5, h6, .brand h1, .brand-title h1 {
  transition: width 600ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 .quota-reset-text {
- font-size: 10px;
- color: var(--muted-strong);
+ font-size: 12px;
+ font-weight: 500;
+ line-height: 1.35;
+ color: var(--fg);
+ opacity: 0.78;
  font-family: "JetBrains Mono", monospace;
+ letter-spacing: 0.01em;
 }
 .quota-status-text {
  font-size: 11px;
@@ -1526,8 +1530,12 @@ h1, h2, h3, h4, h5, h6, .brand h1, .brand-title h1 {
  margin-right: 6px;
 }
 /* Rate-limited is a normal, self-healing state (quota resets on a timer),
-   so it is amber \"waiting\", NOT alarm-red. Genuine failures use .unknown/.error. */
+   so it is amber \"waiting\", NOT alarm-red. Bigger type so it stays scannable. */
 .status-badge.limited {
+ padding: 6px 12px;
+ font-size: 12px;
+ font-weight: 600;
+ letter-spacing: 0.02em;
  background: var(--warn-bg);
  color: var(--warn);
  border-color: var(--warn-border);
@@ -1535,11 +1543,11 @@ h1, h2, h3, h4, h5, h6, .brand h1, .brand-title h1 {
 .status-badge.limited::before {
  content: "";
  display: inline-block;
- width: 6px;
- height: 6px;
+ width: 7px;
+ height: 7px;
  border-radius: 50%;
  background: var(--warn);
- margin-right: 6px;
+ margin-right: 7px;
 }
 .status-badge.unknown {
  background: rgba(113, 113, 122, 0.08);

@@ -3,8 +3,7 @@ import { createPortal } from "react-dom";
 import { FolderOpen, Pencil, RefreshCw, Trash2, Upload, MoreVertical, X, Archive } from "lucide-react";
 import { ProfileSummary } from "../shared/types";
 import { copyForLanguage } from "../i18n";
-import { displayPrimaryLabel, statusForProfile, availablePools, clampPercent, getBarColor, formatResetCountdown } from "../ui-utils";
-import { quotaPercent } from "../shared/utils";
+import { displayPrimaryLabel, statusForProfile, availablePools, getBarColor, formatResetCountdown } from "../ui-utils";
 type UiCopy = ReturnType<typeof copyForLanguage>;
 interface AccountCardProps {
  profile: ProfileSummary;
@@ -72,7 +71,8 @@ export const AccountCard = memo(function AccountCard({
  const percent = primaryPool && primaryPool.remaining !== undefined && primaryPool.limit !== undefined && primaryPool.limit > 0
  ? (primaryPool.remaining / primaryPool.limit) * 100
  : 0;
- const isRateLimited = status === "limited" || (primaryPool && primaryPool.status === "exhausted");
+ const isRateLimited = status === "limited"
+  || (primaryPool && (primaryPool.status === "exhausted" || (typeof primaryPool.remaining === "number" && primaryPool.remaining <= 0)));
  const barColor = primaryPool ? getBarColor(percent, isRateLimited) : undefined;
  const isCriticalBar = isRateLimited || (primaryPool && percent <= 5);
  const visiblePercent = isCriticalBar ? Math.max(percent, 3) : percent;
@@ -81,12 +81,10 @@ export const AccountCard = memo(function AccountCard({
  const criticalTrackStyle = isCriticalBar
  ? { background: "rgba(245, 158, 11, 0.16)", borderColor: "rgba(245, 158, 11, 0.4)" }
  : undefined;
- const activeQuotaPercent = profile.isActive && profile.usage && profile.usage.status === "available"
- ? quotaPercent(profile.usage)
- : undefined;
- const showActiveLowQuotaWarning = profile.isActive
- && activeQuotaPercent !== undefined
- && activeQuotaPercent <= 5;
+ // Active profiles normally hide the status badge (footer says "Active Session"),
+ // but when quota is exhausted we still show Rate Limited so the card state is obvious.
+ const badgeStatus = isRateLimited ? "limited" : status;
+ const showStatusBadge = !profile.isActive || isRateLimited;
  function handleSwitch(e: React.MouseEvent) {
  e.stopPropagation();
  onSwitch();
@@ -214,18 +212,13 @@ export const AccountCard = memo(function AccountCard({
  )}
  {profile.email && <span className="profile-email">{profile.email}</span>}
  </div>
- {!profile.isActive && (
- <span className={`status-badge ${status}`}>
- <span>{copy.status[status]}</span>
+ {showStatusBadge && (
+ <span className={`status-badge ${badgeStatus}`}>
+ <span>{copy.status[badgeStatus]}</span>
  </span>
  )}
  </div>
  <div className="card-body">
- {showActiveLowQuotaWarning && (
- <div className="active-quota-warning" role="alert">
- Quota exhausted, switch to a ready account
- </div>
- )}
  {profile.usage ? (
  profile.usage.status === "available" ? (
  primaryPool ? (
