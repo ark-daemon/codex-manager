@@ -7,12 +7,11 @@
  * readBundleFile and works with the plain bundle object.
  *
  * On disk a bundle is EITHER:
- *   - an encrypted envelope (see cryptoBox.SecureEnvelope), when a passphrase
- *     was supplied at export time, OR
- *   - a legacy plaintext bundle JSON (older exports, or when the user opts
- *     out of encryption).
+ *   - an encrypted envelope (see cryptoBox.SecureEnvelope) — required for all
+ *     new exports, OR
+ *   - a legacy plaintext bundle JSON (older exports only; still importable).
  *
- * readBundleFile transparently handles both.
+ * writeBundleFile always seals. readBundleFile transparently handles both.
  */
 
 import fs from "node:fs/promises";
@@ -28,14 +27,15 @@ export class BundlePassphraseRequiredError extends Error {
 }
 
 /**
- * Write a bundle to disk. When `passphrase` is provided the bundle is sealed
- * as an AES-256-GCM envelope; otherwise it is written as legacy plaintext.
+ * Write a bundle to disk sealed with AES-256-GCM.
+ * A non-empty passphrase is required — exports never write auth material as plaintext.
  */
-export async function writeBundleFile(filePath: string, bundle: unknown, passphrase?: string): Promise<void> {
+export async function writeBundleFile(filePath: string, bundle: unknown, passphrase: string): Promise<void> {
+  if (!passphrase || passphrase.trim().length === 0) {
+    throw new Error("A passphrase is required to export accounts. Exports are always encrypted.");
+  }
   await fs.mkdir(path.dirname(filePath), { recursive: true });
-  const payload = passphrase && passphrase.length > 0
-    ? await sealJson(bundle, passphrase)
-    : bundle;
+  const payload = await sealJson(bundle, passphrase.trim());
   await fs.writeFile(filePath, `${JSON.stringify(payload, null, 2)}\n`, "utf8");
 }
 

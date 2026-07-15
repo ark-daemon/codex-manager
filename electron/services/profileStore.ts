@@ -680,6 +680,9 @@ export class ProfileStore {
     return this.switchProfile({ profileId: nextProfile.id });
   }
   async exportProfilesTo(filePath: string, passphrase?: string): Promise<ProfileExportResult> {
+    if (!passphrase || passphrase.trim().length === 0) {
+      throw new Error("A passphrase is required to export accounts. Exports are always encrypted.");
+    }
     const profiles = await this.listProfiles();
     const activeProfileId = (await this.settingsStore.read()).activeProfileId;
     const bundle: ExportBundle = {
@@ -690,11 +693,9 @@ export class ProfileStore {
     };
     for (const profile of profiles) {
       const manifest = await this.requireManifest(profile.id);
-      // Decrypt auth.json before serialising so the export bundle is always
-      // a portable plain-text JSON regardless of the encryption state of the
-      // source machine. When a passphrase is provided the whole bundle is
-      // then sealed by writeBundleFile, so these tokens never touch disk in
-      // the clear.
+      // Decrypt auth.json before serialising so the in-memory bundle is portable
+      // JSON. The whole file is then sealed by writeBundleFile — tokens never
+      // touch disk in the clear.
       const authJsonPath = path.join(this.profilePath(profile.id), "codex-agent", "auth.json");
       const authJson = await readAuthFile(authJsonPath) ?? null;
       bundle.profiles.push({
@@ -707,9 +708,7 @@ export class ProfileStore {
         authJson
       });
     }
-    // writeBundleFile seals the bundle with AES-256-GCM when a passphrase is
-    // given, otherwise writes legacy plaintext JSON.
-    await writeBundleFile(filePath, bundle, passphrase);
+    await writeBundleFile(filePath, bundle, passphrase.trim());
     return { path: filePath, count: bundle.profiles.length };
   }
   /**

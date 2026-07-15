@@ -150,9 +150,9 @@ export function copyForLanguage(language?: string) {
       nameImportedDescription: "Name this imported Codex app session",
       profileNameLabel: "Profile Name",
       exportTitle: "Export Codex account pool",
-      exportDescription: "Set a passphrase to encrypt this export (leave blank for unencrypted):",
-      exportPassphraseLabel: "Passphrase (optional)",
-      exportPassphrasePlaceholder: "Leave blank for unencrypted",
+      exportDescription: "Exports contain account tokens and must be encrypted. Choose a passphrase you will need to import this file later:",
+      exportPassphraseLabel: "Passphrase (required)",
+      exportPassphrasePlaceholder: "Enter a strong passphrase",
       importEncryptedTitle: "Import Encrypted Profiles",
       importEncryptedDescription: "This export is encrypted. Enter its passphrase to import:",
       importPassphraseLabel: "Passphrase",
@@ -184,7 +184,8 @@ export function copyForLanguage(language?: string) {
       startService: "Start service",
       stopService: "Stop service",
       defaultProfileName: "Codex profile",
-      defaultSyncName: "Codex current"
+      defaultSyncName: "Codex current",
+      exportPassphraseRequired: "A passphrase is required. Exports are always encrypted."
     },
     settings: {
       title: "Settings",
@@ -339,9 +340,9 @@ export function copyForLanguage(language?: string) {
       nameImportedDescription: "为此导入的 Codex 应用会话命名",
       profileNameLabel: "配置名称",
       exportTitle: "导出 Codex 账户池",
-      exportDescription: "设置密码以加密此导出（留空则为未加密）：",
-      exportPassphraseLabel: "密码（可选）",
-      exportPassphrasePlaceholder: "留空表示不加密",
+      exportDescription: "导出包含账户令牌，必须加密。请设置导入时需要的密码：",
+      exportPassphraseLabel: "密码（必填）",
+      exportPassphrasePlaceholder: "输入强密码",
       importEncryptedTitle: "导入加密配置",
       importEncryptedDescription: "此导出已加密。请输入密码以导入：",
       importPassphraseLabel: "密码",
@@ -373,7 +374,8 @@ export function copyForLanguage(language?: string) {
       startService: "启动服务",
       stopService: "停止服务",
       defaultProfileName: "Codex 配置",
-      defaultSyncName: "Codex 当前"
+      defaultSyncName: "Codex 当前",
+      exportPassphraseRequired: "必须设置密码。导出始终加密。"
     },
     settings: {
       title: "设置",
@@ -528,9 +530,9 @@ export function copyForLanguage(language?: string) {
       nameImportedDescription: "このインポートした Codex アプリセッションの名前",
       profileNameLabel: "プロファイル名",
       exportTitle: "Codex アカウントプールをエクスポート",
-      exportDescription: "このエクスポートを暗号化するパスフレーズを設定（空欄で非暗号化）：",
-      exportPassphraseLabel: "パスフレーズ（任意）",
-      exportPassphrasePlaceholder: "空欄で非暗号化",
+      exportDescription: "エクスポートにはアカウントのトークンが含まれ、必ず暗号化されます。インポート時に使うパスフレーズを設定してください：",
+      exportPassphraseLabel: "パスフレーズ（必須）",
+      exportPassphrasePlaceholder: "強力なパスフレーズを入力",
       importEncryptedTitle: "暗号化されたプロファイルをインポート",
       importEncryptedDescription: "このエクスポートは暗号化されています。パスフレーズを入力してください：",
       importPassphraseLabel: "パスフレーズ",
@@ -562,7 +564,8 @@ export function copyForLanguage(language?: string) {
       startService: "サービスを開始",
       stopService: "サービスを停止",
       defaultProfileName: "Codex プロファイル",
-      defaultSyncName: "Codex 現在"
+      defaultSyncName: "Codex 現在",
+      exportPassphraseRequired: "パスフレーズが必要です。エクスポートは常に暗号化されます。"
     },
     settings: {
       title: "設定",
@@ -717,9 +720,9 @@ export function copyForLanguage(language?: string) {
       nameImportedDescription: "이 가져온 Codex 앱 세션의 이름",
       profileNameLabel: "프로필 이름",
       exportTitle: "Codex 계정 풀 내보내기",
-      exportDescription: "이 내보내기를 암호화할 암호를 설정하세요(비우면 암호화 안 함):",
-      exportPassphraseLabel: "암호(선택)",
-      exportPassphrasePlaceholder: "비우면 암호화 안 함",
+      exportDescription: "내보내기에는 계정 토큰이 포함되며 반드시 암호화됩니다. 나중에 가져올 때 쓸 암호를 설정하세요:",
+      exportPassphraseLabel: "암호(필수)",
+      exportPassphrasePlaceholder: "강력한 암호 입력",
       importEncryptedTitle: "암호화된 프로필 가져오기",
       importEncryptedDescription: "이 내보내기는 암호화되어 있습니다. 암호를 입력하세요:",
       importPassphraseLabel: "암호",
@@ -751,7 +754,8 @@ export function copyForLanguage(language?: string) {
       startService: "서비스 시작",
       stopService: "서비스 중지",
       defaultProfileName: "Codex 프로필",
-      defaultSyncName: "Codex 현재"
+      defaultSyncName: "Codex 현재",
+      exportPassphraseRequired: "암호가 필요합니다. 내보내기는 항상 암호화됩니다."
     },
     settings: {
       title: "설정",

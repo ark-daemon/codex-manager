@@ -475,8 +475,12 @@ export function App() {
       inputType: "password",
       confirmText: copy.actions.export,
       onSubmit: async (pass) => {
+        if (!pass.trim()) {
+          setMessage({ kind: "error", text: copy.messages.exportPassphraseRequired });
+          return;
+        }
         setPromptModal(null);
-        await runAction(copy.messages.exportProfiles, () => api.exportProfiles({ passphrase: pass || undefined }), (result) => {
+        await runAction(copy.messages.exportProfiles, () => api.exportProfiles({ passphrase: pass.trim() }), (result) => {
           if (result && typeof result === "object" && "count" in result && (result as { count: number }).count > 0) {
             const count = (result as { count: number }).count;
             const template = count === 1 ? copy.messages.exported : copy.messages.exportedPlural;

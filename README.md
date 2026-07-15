@@ -88,7 +88,7 @@ Threat model: a local attacker with filesystem access, and a compromised rendere
 - **Minimal network** — `auth.openai.com` (token refresh) and `chatgpt.com` (quota)
 
 > [!CAUTION]
-> Export bundles may contain secrets. Prefer a passphrase when exporting. Treat export files like credentials.
+> Export bundles contain account tokens and are **always encrypted** with a passphrase you choose. Treat the file and the passphrase like credentials. Legacy plaintext exports (older versions) can still be imported.
 
 To report a vulnerability, **do not open a public issue**. Email `arkucrypto@gmail.com` with details and a reproduction.
 

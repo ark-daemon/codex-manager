@@ -372,33 +372,32 @@ describe("ProfileStore settings and import/export", () => {
  expect(state.settings.lowQuotaAlerts).toBe(false);
  expect(state.settings.notifyWhenAvailable).toBe(false);
  });
- it("exports valid JSON with profile metadata and imports it back", async () => {
+ it("rejects export without a passphrase", async () => {
+ const store = makeStore();
+ await store.initialize();
+ await writeProfile(tempRoot, "p1", "Exported", "export@example.com");
+ const exportPath = path.join(tempRoot, "exports", "no-pass.json");
+ await expect(store.exportProfilesTo(exportPath)).rejects.toThrow(/passphrase is required/i);
+ await expect(store.exportProfilesTo(exportPath, "   ")).rejects.toThrow(/passphrase is required/i);
+ });
+ it("exports encrypted JSON with profile metadata and imports it back", async () => {
  const store = makeStore();
  await store.initialize();
  await writeProfile(tempRoot, "p1", "Exported", "export@example.com");
  const exportPath = path.join(tempRoot, "exports", "accounts.json");
- const exported = await store.exportProfilesTo(exportPath);
- const parsed = JSON.parse(await fs.readFile(exportPath, "utf8")) as {
- exportedBy: string;
- version: string;
- exportedAt: string;
- profiles: Array<{ id: string; name: string; email: string; authJson: string | null }>;
- };
+ const passphrase = "test-export-pass-phrase";
+ const exported = await store.exportProfilesTo(exportPath, passphrase);
+ const onDisk = JSON.parse(await fs.readFile(exportPath, "utf8")) as Record<string, unknown>;
  expect(exported.count).toBe(1);
- // New bundle header
- expect(parsed.exportedBy).toBe("codex-manager");
- expect(parsed.version).toBe("1.0");
- expect(parsed.exportedAt).toMatch(/^\d{4}-\d{2}-\d{2}T/);
- // Flat profile shape \u2014 no nested manifest, no binary files[]
- expect(parsed.profiles[0]).toEqual(expect.objectContaining({ id: "p1", name: "Exported", email: "export@example.com" }));
- expect(parsed.profiles[0]).not.toHaveProperty("manifest");
- expect(parsed.profiles[0]).not.toHaveProperty("files");
- // authJson is either text or null \u2014 never a large buffer
- expect(typeof parsed.profiles[0].authJson === "string" || parsed.profiles[0].authJson === null).toBe(true);
+ // Must be sealed (not plaintext profile dump)
+ expect(onDisk).toHaveProperty("cmSecure");
+ expect(onDisk).toHaveProperty("data");
+ expect(onDisk).not.toHaveProperty("exportedBy");
+ expect(onDisk).not.toHaveProperty("profiles");
  const importRoot = path.join(tempRoot, "imported-store");
  const importedStore = new ProfileStore(importRoot, { isRunning: vi.fn(), close: vi.fn(), launch: vi.fn() }, makeUsageService() as never);
  await importedStore.initialize();
- const importResult = await importedStore.importProfilesFrom(exportPath);
+ const importResult = await importedStore.importProfilesFrom(exportPath, passphrase);
  expect(importResult.count).toBe(1);
  // All imported profiles are READY \u2014 none set as active
  const state = await importedStore.getState();
@@ -411,9 +410,14 @@ describe("ProfileStore settings and import/export", () => {
  await writeProfile(tempRoot, "p1", "Alice", "alice@example.com");
  await writeProfile(tempRoot, "p2", "Bob", undefined);
  const exportPath = path.join(tempRoot, "exports", "preview-test.json");
- await store.exportProfilesTo(exportPath);
- // Preview should return names/emails without modifying anything
- const preview = await store.previewImportFrom(exportPath);
+ const passphrase = "preview-pass";
+ await store.exportProfilesTo(exportPath, passphrase);
+ // Encrypted without passphrase \u2192 UI should prompt
+ const locked = await store.previewImportFrom(exportPath);
+ expect(locked.encrypted).toBe(true);
+ expect(locked.profiles).toEqual([]);
+ // With passphrase \u2192 names/emails without modifying store
+ const preview = await store.previewImportFrom(exportPath, passphrase);
  expect(preview.profiles.map((p) => p.name)).toEqual(expect.arrayContaining(["Alice", "Bob"]));
  expect(preview.profiles.find((p) => p.name === "Alice")?.email).toBe("alice@example.com");
  expect(preview.profiles.find((p) => p.name === "Bob")?.email).toBeUndefined();
