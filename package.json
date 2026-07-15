@@ -2,7 +2,7 @@
  "name": "codex-manager",
  "version": "0.1.4",
  "private": true,
- "description": "Cross-platform (Windows, macOS, Linux) desktop account profile switcher for Codex.",
+ "description": "Cross-platform multi-account session manager for OpenAI Codex (ChatGPT desktop shell).",
  "main": "dist-electron/electron/main.js",
  "type": "module",
  "scripts": {

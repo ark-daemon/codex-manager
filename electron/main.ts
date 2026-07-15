@@ -226,12 +226,12 @@ function registerIpc(): void {
       : [{ name: "All Files", extensions: ["*"] }];
     const result = mainWindow
       ? await dialog.showOpenDialog(mainWindow, {
-          title: "Select Codex executable",
+          title: "Select Codex / ChatGPT executable",
           filters: exeFilters,
           properties: ["openFile"]
         })
       : await dialog.showOpenDialog({
-          title: "Select Codex executable",
+          title: "Select Codex / ChatGPT executable",
           filters: exeFilters,
           properties: ["openFile"]
         });

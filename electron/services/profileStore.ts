@@ -328,7 +328,7 @@ export class ProfileStore {
     try {
       const manifest = await this.runSwitchStep("loading target profile manifest", switchContext, () => this.requireManifest(input.profileId));
       const settings = await this.runSwitchStep("reading settings", switchContext, () => this.settingsStore.read());
-      const executablePath = await this.runSwitchStep("resolving Codex executable path", switchContext, () =>
+      const executablePath = await this.runSwitchStep("resolving Codex / ChatGPT executable path", switchContext, () =>
         this.resolveExecutablePath(settings.executablePath, definition)
       );
       const profilePath = this.profilePath(input.profileId);
@@ -371,7 +371,7 @@ export class ProfileStore {
           throw new Error("This account's tokens have expired and there is no refresh token available. Add this account again via the login flow.");
         }
       }
-      await this.runSwitchStep("closing Codex", switchContext, () => this.processManager.close(definition));
+      await this.runSwitchStep("closing Codex / ChatGPT", switchContext, () => this.processManager.close(definition));
       // Note: we previously waited 1500ms here to let SQLite WAL writes flush
       // before capturing state_5.sqlite. That file is now shared across accounts
       // and never swapped \u2014 so this delay is no longer needed. Auth writes
@@ -433,7 +433,7 @@ export class ProfileStore {
         nextSettings.activeProfileId = input.profileId;
       }));
       await this.runSwitchStep("waiting before Codex relaunch", switchContext, () => delay(500));
-      await this.runSwitchStep("relaunching Codex", switchContext, () => this.processManager.launch(executablePath, definition));
+      await this.runSwitchStep("relaunching Codex / ChatGPT", switchContext, () => this.processManager.launch(executablePath, definition));
       // Return immediately so the UI unblocks \u2014 quota refresh is a network call
       // that can take 30\u201360 s and is not needed for the switch to be usable.
       const state = await this.getState();
@@ -463,7 +463,7 @@ export class ProfileStore {
       try {
         await fs.access(candidate);
         if (configuredPath && candidate !== configuredPath) {
-          console.warn(`[CodexManager switch] configured Codex executable was unavailable, using detected path: ${candidate}`);
+          console.warn(`[CodexManager switch] configured Codex / ChatGPT executable was unavailable, using detected path: ${candidate}`);
         }
         return candidate;
       } catch (error) {
@@ -473,8 +473,8 @@ export class ProfileStore {
     }
     const configured = configuredPath ? `Saved setting: ${configuredPath}. ` : "";
     throw new Error(
-      `Codex executable could not be found. ${configured}Checked: ${failures.join("; ")}. ` +
-      "Open Settings > Codex > Executable and choose the correct Codex executable path."
+      `Codex / ChatGPT executable could not be found. ${configured}Checked: ${failures.join("; ")}. ` +
+      "Open Settings > Codex / ChatGPT > Executable and choose ChatGPT.exe or Codex.exe."
     );
   }
   async backupProfile(input: ProfileActionInput): Promise<AppState> {

@@ -63,7 +63,8 @@ export function getAppDefinition(env: EnvPaths = getEnvPaths()): AppDefinition {
   const defaultExecutablePath = detectCodexExecutablePath(env);
   const msixAumid = process.platform === "win32" ? detectCodexMsixAumid() : undefined;
   return {
-    displayName: "Codex",
+    // Product brand stays Codex Manager; display name reflects the desktop shell users see.
+    displayName: "Codex / ChatGPT",
     processNames: getCodexProcessNames(),
     defaultExecutablePath,
     msixAumid,

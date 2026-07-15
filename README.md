@@ -3,7 +3,7 @@
 
   # Codex Manager
 
-  **Multi-account session manager for OpenAI Codex**
+  **Multi-account session manager for OpenAI Codex (ChatGPT desktop shell)**
 
   [![Release](https://img.shields.io/github/v/release/ark-daemon/codex-manager?style=flat-square)](https://github.com/ark-daemon/codex-manager/releases)
   [![Build](https://img.shields.io/github/actions/workflow/status/ark-daemon/codex-manager/release.yml?style=flat-square&label=Build)](https://github.com/ark-daemon/codex-manager/actions)
@@ -18,14 +18,17 @@
 
 Codex Manager is a cross-platform desktop app (Windows, macOS, Linux) that lets you maintain multiple isolated OpenAI Codex accounts and switch between them in under two seconds — without ever touching a config file.
 
-It snapshots, encrypts, and hot-swaps the entire Codex session directory (`~/.codex`) between profiles. Each profile stores its own auth tokens, SQLite databases, agent memory, rules, hooks, and plugin config, fully isolated from every other profile.
+It snapshots, encrypts, and hot-swaps the Codex session directory (`~/.codex`) between profiles. Each profile stores its own auth tokens, agent memory, rules, hooks, and plugin config, fully isolated from every other profile.
+
+> [!NOTE]
+> **Targets the Codex desktop experience.** On current Windows builds the shell process is `ChatGPT.exe` (MSIX package still named `OpenAI.Codex`); session data remains under `~/.codex`. This app manages **Codex accounts/sessions**, not general ChatGPT web chat.
 
 > [!NOTE]
 > **No telemetry. No analytics. Your credentials never leave your machine** except to authenticate with OpenAI's own endpoints.
 
 ## Features
 
-- **Instant switching** — switches the full Codex session between accounts in ~1.5 seconds, including decrypting tokens and relaunching Codex.
+- **Instant switching** — switches the full Codex session between accounts in ~1.5 seconds, including decrypting tokens and relaunching the ChatGPT/Codex desktop app.
 - **Usage polling** — polls each account's quota every 20 minutes and shows five-hour, weekly, monthly, and credit windows with reset countdowns.
 - **Auto-switch** — when the active account's quota drops below a threshold (default 10%), the engine picks the highest-quota ready account and switches automatically.
 - **Silent token refresh** — detects expired JWT `id_token` claims before a switch and refreshes them via OpenAI's OAuth endpoint without interrupting your workflow.
