@@ -65,7 +65,7 @@ export function Sidebar({
         <div className="service-status-row">
           <span className={`service-dot ${state.settings.serviceRunning ? "running" : "stopped"}`} />
           <div className="service-primary">
-            <strong title="Background quota polling runs every 20 min and sends notifications when rate-limited accounts become available.">
+            <strong title={copy.sidebar.serviceTooltip}>
               {state.settings.serviceRunning ? copy.sidebar.serviceActive : copy.sidebar.servicePaused}
             </strong>
           </div>
@@ -77,7 +77,7 @@ export function Sidebar({
           </div>
         )}
         <div className="service-auto-switch-group">
-          <label className="toggle service-toggle" title="Auto-switch">
+          <label className="toggle service-toggle" title={copy.actions.autoSwitch}>
             <input
               type="checkbox"
               checked={state.settings.autoSwitchEnabled}

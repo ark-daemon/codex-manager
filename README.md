@@ -3,40 +3,33 @@
 
   # Codex Manager
 
-  **Multi-account session manager for OpenAI Codex (ChatGPT desktop shell)**
+  **Multi-account session manager for OpenAI Codex**  
+  *Works with the ChatGPT desktop shell · session data in `~/.codex`*
 
   [![Release](https://img.shields.io/github/v/release/ark-daemon/codex-manager?style=flat-square)](https://github.com/ark-daemon/codex-manager/releases)
-  [![Build](https://img.shields.io/github/actions/workflow/status/ark-daemon/codex-manager/release.yml?style=flat-square&label=Build)](https://github.com/ark-daemon/codex-manager/actions)
+  [![Build](https://img.shields.io/github/actions/workflow/status/ark-daemon/codex-manager/build.yml?style=flat-square&label=Build)](https://github.com/ark-daemon/codex-manager/actions)
   [![Electron](https://img.shields.io/badge/Electron-39-47848f?style=flat-square&logo=electron)](https://electronjs.org)
   [![TypeScript](https://img.shields.io/badge/TypeScript-5.9-3178c6?style=flat-square&logo=typescript)](https://www.typescriptlang.org)
   [![License: MIT](https://img.shields.io/badge/License-MIT-yellow?style=flat-square)](./LICENSE)
 
-  [Download](#installation) • [Features](#features) • [Security](#security) • [Development](#development)
+  [Download](#installation) • [Features](#features) • [How it works](#how-it-works) • [Security](#security) • [Development](#development)
 </div>
 
 ---
 
-Codex Manager is a cross-platform desktop app (Windows, macOS, Linux) that lets you maintain multiple isolated OpenAI Codex accounts and switch between them in under two seconds — without ever touching a config file.
+Codex Manager is a cross-platform desktop app (Windows, macOS, Linux) for keeping multiple OpenAI Codex accounts ready and switching between them in about two seconds — without editing config files by hand.
 
-It snapshots, encrypts, and hot-swaps the Codex session directory (`~/.codex`) between profiles. Each profile stores its own auth tokens, agent memory, rules, hooks, and plugin config, fully isolated from every other profile.
-
-> [!NOTE]
-> **Targets the Codex desktop experience.** On current Windows builds the shell process is `ChatGPT.exe` (MSIX package still named `OpenAI.Codex`); session data remains under `~/.codex`. This app manages **Codex accounts/sessions**, not general ChatGPT web chat.
+It encrypts stored credentials, snapshots per-account Codex state under `~/.codex`, and hot-swaps the active profile while closing and relaunching the desktop app cleanly.
 
 > [!NOTE]
-> **No telemetry. No analytics. Your credentials never leave your machine** except to authenticate with OpenAI's own endpoints.
+> **No telemetry. No analytics.** Credentials stay on your machine except when talking to OpenAI’s own endpoints (`auth.openai.com`, `chatgpt.com`).
 
-## Features
+## Requirements
 
-- **Instant switching** — switches the full Codex session between accounts in ~1.5 seconds, including decrypting tokens and relaunching the ChatGPT/Codex desktop app.
-- **Usage polling** — polls each account's quota every 20 minutes and shows five-hour, weekly, monthly, and credit windows with reset countdowns.
-- **Auto-switch** — when the active account's quota drops below a threshold (default 10%), the engine picks the highest-quota ready account and switches automatically.
-- **Silent token refresh** — detects expired JWT `id_token` claims before a switch and refreshes them via OpenAI's OAuth endpoint without interrupting your workflow.
-- **Login capture** — opens the Codex browser login flow, captures auth tokens and session files, and saves them as a named profile. No manual file copying.
-- **Import / export** — backs up all profiles to a single versioned JSON bundle and restores them on any machine.
-- **System tray** — quick-switch menu, quota percentage display, and background service toggle from the tray icon. Runs minimised on close.
-- **Desktop notifications** — interactive toasts on Windows and macOS let you switch accounts or open the manager directly from the notification.
-- **Dark / light theme** — follows OS preference with a manual override in Settings.
+- **OpenAI Codex desktop** installed (current Windows Store/MSIX package is still `OpenAI.Codex`; the GUI process is often `ChatGPT.exe`)
+- Node.js **22+** only if you build from source
+
+This app manages **Codex agent sessions and quotas**, not general ChatGPT web chat history.
 
 ## Installation
 
@@ -44,83 +37,112 @@ Download the latest release for your platform from the [Releases page](https://g
 
 | Platform | Package |
 |----------|---------|
-| **Windows** | `Codex Manager Setup x.x.x.exe` (NSIS installer) or portable `.exe` |
+| **Windows** | `Codex Manager Setup x.x.x.exe` (NSIS) or portable `.exe` |
 | **macOS** | `Codex Manager-x.x.x.dmg` |
 | **Linux** | `codex-manager_x.x.x.deb` or `.tar.gz` |
 
-The app checks for updates on launch and prompts before downloading — no silent background updates.
+The app checks for updates on launch and asks before downloading — no silent background updates.
 
 > [!IMPORTANT]
-> **Linux users:** `libsecret-1` is required for encrypted auth storage. Install it with `sudo apt install libsecret-1-0` (Debian/Ubuntu) or the equivalent for your distro. A passphrase-based AES-256-GCM fallback is used if no keyring is available.
+> **Linux:** encrypted auth storage needs `libsecret-1`. Install with `sudo apt install libsecret-1-0` (Debian/Ubuntu) or your distro’s equivalent. If no keyring is available, set a session passphrase (AES-256-GCM) when prompted.
+
+## Features
+
+- **Instant switching** — decrypts the target profile, writes it into `~/.codex`, fully quits ChatGPT/Codex, then relaunches
+- **Usage polling** — refreshes each account’s quota on an interval (default 20 minutes) with five-hour, weekly, monthly, and credit windows plus reset countdowns
+- **Auto-switch** — when the active account drops below a threshold (default 10%), picks the highest-quota ready account
+- **Silent token refresh** — refreshes expired JWT access before a switch when a refresh token is available
+- **Login capture** — opens the browser login flow, captures auth + session files, and saves a named profile
+- **Import / export** — backup all profiles to a versioned JSON bundle; optional passphrase encryption for the export file
+- **System tray** — quick switch, quota summary, and background service toggle; closes to tray by default
+- **Desktop notifications** — low-quota and “available again” alerts on Windows and macOS
+- **Dark / light theme** — follows the OS with a Settings override
+
+## How it works
+
+Profiles are stored under the Codex Manager data directory (see below). On switch, the app:
+
+1. Closes the desktop shell (`ChatGPT.exe` / `Codex` / helper `codex` processes)
+2. Saves the previous account’s managed files back into its profile folder
+3. Restores the target profile’s auth, config, personalisation, and related files into `~/.codex`
+4. Relaunches the desktop app (on Windows MSIX via the package AUMID)
+
+### Per-account vs shared
+
+| Swapped (per profile) | Left shared on the machine |
+|-----------------------|----------------------------|
+| `auth.json`, `profiles/`, `profiles.json`, `cap_sid` | Conversation DBs (`state_5.sqlite*`, …) |
+| `config.toml`, hooks, rules, agents, memories | `sessions/`, session index |
+| Per-account UI state (`.codex-global-state.json`) | Cache, installation id, model list |
+
+Conversation history is intentionally **not** forked per account: Codex stores threads without a per-user partition in those databases, so swapping them would corrupt other accounts’ history.
 
 ## Security
 
-Security is a first-class design goal. The threat model assumes a local attacker with filesystem access and a compromised renderer process.
+Threat model: a local attacker with filesystem access, and a compromised renderer process.
 
-- **Encryption at rest** — auth tokens are encrypted through Electron's `safeStorage` API using the platform's native keychain (Windows DPAPI, macOS Keychain, Linux `libsecret`). The on-disk format uses a `CMENC1:` magic prefix.
-- **Passphrase fallback** — when no OS keychain is available, tokens are sealed with AES-256-GCM using a scrypt-derived key (`CMPWD1:` format).
-- **Fails closed** — if neither keychain nor passphrase is available, writes fail rather than fall back to plaintext. AES-GCM authentication-tag verification throws on any tampered payload.
-- **Hardened renderer** — `contextIsolation: true`, `nodeIntegration: false`, `sandbox: true`. The preload script exposes only typed IPC channels via `contextBridge`. Navigation to remote content is blocked.
-- **Minimal network surface** — the only outbound calls are to `auth.openai.com` (token refresh) and `chatgpt.com` (quota polling).
+- **Encryption at rest** — auth files use Electron `safeStorage` (Windows DPAPI, macOS Keychain, Linux libsecret), marked with a `CMENC1:` prefix
+- **Passphrase fallback** — if no OS keychain is available, auth is sealed with AES-256-GCM (`CMPWD1:`) using a session passphrase you enter each launch
+- **Fails closed** — without keychain or passphrase, credentials are not written as plaintext
+- **Hardened renderer** — `contextIsolation`, no Node in the page, `sandbox`, navigation blocked; IPC only accepted from the app’s own frames
+- **Minimal network** — `auth.openai.com` (token refresh) and `chatgpt.com` (quota)
 
 > [!CAUTION]
-> Profile exports contain plain-text auth tokens for cross-machine portability. Treat export files as secrets and store them accordingly.
+> Export bundles may contain secrets. Prefer a passphrase when exporting. Treat export files like credentials.
 
-To report a security vulnerability, **do not open a public issue**. Email `arkucrypto@gmail.com` with details and a reproduction.
+To report a vulnerability, **do not open a public issue**. Email `arkucrypto@gmail.com` with details and a reproduction.
+
+## Compatibility
+
+OpenAI renames shell binaries and package layouts occasionally. Codex Manager matches:
+
+- Process names: `ChatGPT`, `Codex`, `codex`
+- MSIX package: `OpenAI.Codex` (fallback `OpenAI.ChatGPT` if renamed)
+- Session root: `~/.codex`
+
+If a future desktop update changes process names or paths again, switches may fail until Codex Manager is updated. Open an issue with your OS, app version, and process list.
 
 ## Development
 
 **Prerequisites:** Node.js 22+, npm 10+
 
 ```bash
-# Clone and install
 git clone https://github.com/ark-daemon/codex-manager.git
 cd codex-manager
 npm install
 
-# Run tests (95 tests across 10 suites)
+# Tests (~101 across 11 suites)
 npm test
 
-# Start in development mode (TypeScript build + Electron launch)
+# Build main + renderer, then launch Electron
 npm start
 
-# Package for distribution
-npm run dist        # Windows: NSIS installer + portable .exe
+# Package
+npm run dist        # Windows: NSIS + portable
 npm run dist:mac    # macOS: DMG
 npm run dist:linux  # Linux: .deb + .tar.gz
 ```
 
-CI builds run on all three platforms on every push via GitHub Actions. Tagged releases (`v*`) trigger the release workflow which packages and publishes installers automatically.
+CI builds installers on every push (`build.yml`). Pushing a `v*` tag runs the release workflow and attaches draft GitHub Release assets.
 
 ### Project structure
 
 ```
-electron/           # Main process (Node.js / Electron)
-├── main.ts         # Window, tray, IPC, app lifecycle
+electron/           # Main process
+├── main.ts         # Window, tray, IPC, auto-update
 ├── preload.cts     # Typed context bridge
-└── services/
-    ├── authStorage.ts          # safeStorage encrypt/decrypt wrapper
-    ├── profileStore.ts         # Profile CRUD, switch orchestration, auto-switch
-    ├── usagePoller.ts          # 20-min polling loop
-    ├── usageService.ts         # Quota fetching, JWT parsing, token refresh
-    ├── codexLoginCaptureService.ts  # Browser login → profile capture
-    ├── notifications.ts        # Desktop notification service
-    ├── processManager.ts       # Codex process lifecycle
-    └── paths.ts                # Cross-platform path resolution
-src/                # Renderer process (React + TypeScript)
-├── App.tsx         # Accounts grid, settings, state management
-├── styles.css      # CSS custom properties, dark / light theme
-└── shared/         # Types and utilities shared across processes
-tests/              # Vitest test suites (unit + integration)
-scripts/            # Icon generation, asset copy, post-build
+└── services/       # Profiles, auth, switch, usage, process, paths, …
+src/                # React UI (accounts, settings, tray-driven state)
+tests/              # Vitest unit + integration suites
+scripts/            # Icons, assets, post-build
 ```
 
 ### Data directory
 
-Codex Manager stores profiles and settings in the OS-appropriate location:
+| OS | Path |
+|----|------|
+| Windows | `%LOCALAPPDATA%\CodexManager\` |
+| macOS | `~/Library/Application Support/CodexManager/` |
+| Linux | `~/.config/CodexManager/` |
 
-```
-Windows   %LOCALAPPDATA%\CodexManager\
-macOS     ~/Library/Application Support/CodexManager/
-Linux     ~/.config/CodexManager/
-```
+Live Codex session files remain in `~/.codex` (managed on switch; not the same as the Codex Manager store above).

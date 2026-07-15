@@ -2,7 +2,7 @@ import { memo, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { FolderOpen, Pencil, RefreshCw, Trash2, Upload, MoreVertical, X, Archive } from "lucide-react";
 import { ProfileSummary } from "../shared/types";
-import { copyForLanguage } from "../i18n";
+import { copyForLanguage, formatMessage } from "../i18n";
 import { displayPrimaryLabel, statusForProfile, availablePools, getBarColor, formatResetCountdown } from "../ui-utils";
 type UiCopy = ReturnType<typeof copyForLanguage>;
 interface AccountCardProps {
@@ -163,10 +163,10 @@ export const AccountCard = memo(function AccountCard({
  </button>
  ) : (
  <div className="card-menu-delete-confirm">
- <span>Really delete?</span>
+ <span>{copy.accounts.deleteConfirm}</span>
  <div className="card-menu-delete-confirm-actions">
- <button className="danger" onClick={() => { onMenuOpenChange(false); onDelete(); }}>Yes</button>
- <button onClick={() => setConfirmDelete(false)}>No</button>
+ <button className="danger" onClick={() => { onMenuOpenChange(false); onDelete(); }}>{copy.actions.yes}</button>
+ <button onClick={() => setConfirmDelete(false)}>{copy.actions.no}</button>
  </div>
  </div>
  )}
@@ -193,7 +193,7 @@ export const AccountCard = memo(function AccountCard({
  <div className="card-identity">
  {renaming ? (
  <div className="card-rename-field" onClick={(e) => e.stopPropagation()}>
- <label htmlFor={`rename-input-${profile.id}`} style={{ display: "none" }}>Display name</label>
+ <label htmlFor={`rename-input-${profile.id}`} style={{ display: "none" }}>{copy.login.profileName}</label>
  <input
  id={`rename-input-${profile.id}`}
  value={newName}
@@ -226,7 +226,12 @@ export const AccountCard = memo(function AccountCard({
  <div className="quota-info">
  <span className="quota-pool-label">
  {primaryPool.label}
- {hasMultiplePools && <span className="quota-multiple-indicator"> (+{pools.length - 1} other limits)</span>}
+ {hasMultiplePools && (
+ <span className="quota-multiple-indicator">
+ {" "}
+ ({formatMessage(copy.accounts.otherLimits, { count: pools.length - 1 })})
+ </span>
+ )}
  </span>
  <span
  className="quota-pool-numbers quota-value"
@@ -272,7 +277,7 @@ export const AccountCard = memo(function AccountCard({
  {profile.isActive ? (
  <div className="card-active-strip">
  <span className="card-active-dot" />
- <span className="card-active-label">Active Session</span>
+ <span className="card-active-label">{copy.accounts.activeSession}</span>
  </div>
  ) : (
  <button className="card-use-button" onClick={handleSwitch}>

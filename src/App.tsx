@@ -7,7 +7,7 @@ import {
   SettingsUpdateInput,
   StatusMessage
 } from "./shared/types";
-import { copyForLanguage, PSEUDO_LOCALE_STORAGE_KEY, readPseudoLocaleEnabled } from "./i18n";
+import { copyForLanguage, formatMessage, PSEUDO_LOCALE_STORAGE_KEY, readPseudoLocaleEnabled } from "./i18n";
 import {
   buildStats,
   errorMessage,
@@ -62,23 +62,24 @@ export function App() {
   useEffect(() => {
     const api = getApi();
     if (!api) {
-      setFatal("Renderer bridge is not available. Preload may not have loaded.");
+      setFatal(copyForLanguage().startup.bridgeMissing);
       return;
     }
     // Security: when no OS keychain is available, prompt for a session
     // passphrase and unlock BEFORE loading state, so the first auth read/write
     // has key material and credentials are never persisted in the clear.
     void (async () => {
+      const unlockCopy = copyForLanguage();
       try {
         if (await api.needsPassphrase()) {
           setPromptModal({
             open: true,
-            title: "Session Passphrase Required",
-            description: "No system keychain was found. Set a session passphrase to encrypt your accounts (you'll re-enter it each launch):",
-            inputLabel: "Session Passphrase",
-            placeholder: "Enter passphrase",
+            title: unlockCopy.prompts.passphraseTitle,
+            description: unlockCopy.prompts.passphraseDescription,
+            inputLabel: unlockCopy.prompts.passphraseLabel,
+            placeholder: unlockCopy.prompts.passphrasePlaceholder,
             inputType: "password",
-            confirmText: "Unlock",
+            confirmText: unlockCopy.actions.unlock,
             onSubmit: async (pass) => {
               setPromptModal(null);
               if (pass) {
@@ -101,7 +102,7 @@ export function App() {
     })();
     const cleanupFocus = api.focusProfile((input) => {
       void loadState(false, false).then(() => setSelected(input));
-      setMessage({ kind: "info", text: "Focused Codex profile from notification." });
+      setMessage({ kind: "info", text: copyForLanguage().messages.focusedFromNotification });
     });
     const cleanupState = api.stateChanged(() => {
       void loadState(false, false);
@@ -171,11 +172,11 @@ export function App() {
   async function loadState(refreshActiveUsage = true, showBusy = true) {
     const api = getApi();
     if (!api) {
-      setFatal("Renderer bridge is not available. Preload may not have loaded.");
+      setFatal(copy.startup.bridgeMissing);
       return;
     }
     if (showBusy) {
-      setBusy("Loading profiles");
+      setBusy(copy.messages.loadingProfiles);
     }
     try {
       let nextState = await api.getState();
@@ -204,7 +205,7 @@ export function App() {
       }
       const customHandled = await after?.(result);
       if (customHandled !== true) {
-        setMessage({ kind: "success", text: `${label} finished.` });
+        setMessage({ kind: "success", text: formatMessage(copy.messages.actionFinished, { label }) });
       }
     } catch (error) {
       setMessage({ kind: "error", text: errorMessage(error) });
@@ -215,7 +216,7 @@ export function App() {
   async function createProfile() {
     const api = requireApi(setFatal);
     if (!api) return;
-    setBusy("Preparing secure login");
+    setBusy(copy.messages.preparingLogin);
     try {
       const session = await api.startLoginCapture();
       setLoginModal({
@@ -223,7 +224,7 @@ export function App() {
         captureId: session.captureId,
         authorizationUrl: session.authorizationUrl,
         status: "ready",
-        message: "Ready - click Open Login Page to continue."
+        message: copy.login.readyOpenLogin
       });
     } catch (error) {
       setMessage({ kind: "error", text: errorMessage(error) });
@@ -237,7 +238,7 @@ export function App() {
     setLoginModal((current) => ({
       ...current,
       status: "waiting",
-      message: "Waiting for you to finish signing in..."
+      message: copy.login.waitingSignIn
     }));
     try {
       await api.openLoginCapture({ captureId: loginModal.captureId });
@@ -245,9 +246,9 @@ export function App() {
       setLoginModal((current) => ({
         ...current,
         status: "ready",
-        message: "Sign-in complete. Choose a display name to save this account.",
+        message: copy.login.signInComplete,
         capture,
-        profileName: capture.suggestedName ?? capture.accountEmail ?? "Codex profile"
+        profileName: capture.suggestedName ?? capture.accountEmail ?? copy.messages.defaultProfileName
       }));
     } catch (error) {
       const msg = errorMessage(error);
@@ -262,7 +263,7 @@ export function App() {
             captureId: session.captureId,
             authorizationUrl: session.authorizationUrl,
             status: "ready",
-            message: "That login session expired. Please try again.",
+            message: copy.login.sessionExpired,
             capture: undefined
           }));
         } catch (freshError) {
@@ -284,9 +285,9 @@ export function App() {
   async function saveLoginProfile() {
     const api = requireApi(setFatal);
     if (!api || !loginModal.capture) return;
-    setBusy("Saving account");
+    setBusy(copy.messages.savingAccount);
     try {
-      const name = loginModal.profileName?.trim() || loginModal.capture.suggestedName || loginModal.capture.accountEmail || "Codex profile";
+      const name = loginModal.profileName?.trim() || loginModal.capture.suggestedName || loginModal.capture.accountEmail || copy.messages.defaultProfileName;
       const nextState = await api.createProfile({ captureId: loginModal.capture.captureId, name });
       setState(nextState);
       setSelected(firstProfileByCreatedAt(nextState));
@@ -304,7 +305,7 @@ export function App() {
   async function addAnotherAccount() {
     const api = requireApi(setFatal);
     if (!api) return;
-    setBusy("Preparing secure login");
+    setBusy(copy.messages.preparingLogin);
     try {
       const session = await api.startLoginCapture();
       setLoginModal({
@@ -312,7 +313,7 @@ export function App() {
         captureId: session.captureId,
         authorizationUrl: session.authorizationUrl,
         status: "ready",
-        message: "Ready - click Open Login Page to continue."
+        message: copy.login.readyOpenLogin
       });
     } catch (error) {
       setLoginModal((current) => ({
@@ -343,16 +344,16 @@ export function App() {
     if (!api) return;
     setPromptModal({
       open: true,
-      title: "Name Imported Session",
-      description: "Name this imported Codex app session",
-      inputLabel: "Profile Name",
-      defaultValue: "Codex current",
-      placeholder: "Codex current",
+      title: copy.prompts.nameImportedTitle,
+      description: copy.prompts.nameImportedDescription,
+      inputLabel: copy.prompts.profileNameLabel,
+      defaultValue: copy.messages.defaultSyncName,
+      placeholder: copy.messages.defaultSyncName,
       inputType: "text",
-      confirmText: "Sync",
+      confirmText: copy.actions.sync,
       onSubmit: async (name) => {
         setPromptModal(null);
-        await runAction("Sync from app", () => api.syncCurrentProfile({ name: name.trim() || "Codex current" }), (nextState) => {
+        await runAction(copy.messages.syncFromApp, () => api.syncCurrentProfile({ name: name.trim() || copy.messages.defaultSyncName }), (nextState) => {
           setState(nextState);
           setSelected(firstProfileByCreatedAt(nextState));
           return false;
@@ -366,7 +367,7 @@ export function App() {
     if (!api) return;
     manualSwitchInProgressRef.current = true;
     try {
-      await runAction("Switch profile", () => api.switchProfile({ profileId: profile.id }), async () => {
+      await runAction(copy.messages.switchProfile, () => api.switchProfile({ profileId: profile.id }), async () => {
         await loadState(false);
         setSelected({ profileId: profile.id });
       });
@@ -377,7 +378,7 @@ export function App() {
   async function refreshUsage(profile: ProfileSummary) {
     const api = requireApi(setFatal);
     if (!api) return;
-    await runAction("Refresh usage", () => api.refreshUsage({ profileId: profile.id }), () => {
+    await runAction(copy.messages.refreshUsage, () => api.refreshUsage({ profileId: profile.id }), () => {
       void loadState(false);
     });
   }
@@ -403,17 +404,17 @@ export function App() {
   async function backupProfile(profile: ProfileSummary) {
     const api = requireApi(setFatal);
     if (!api) return;
-    await runAction("Backup profile", () => api.backupProfile({ profileId: profile.id }), setState);
+    await runAction(copy.messages.backupProfile, () => api.backupProfile({ profileId: profile.id }), setState);
   }
   async function renameProfile(profile: ProfileSummary, name: string) {
     const api = requireApi(setFatal);
     if (!api) return;
-    await runAction("Rename profile", () => api.renameProfile({ profileId: profile.id, name }), setState);
+    await runAction(copy.messages.renameProfile, () => api.renameProfile({ profileId: profile.id, name }), setState);
   }
   async function deleteProfile(profile: ProfileSummary) {
     const api = requireApi(setFatal);
     if (!api) return;
-    await runAction("Delete profile", () => api.deleteProfile({ profileId: profile.id }), (nextState) => {
+    await runAction(copy.messages.deleteProfile, () => api.deleteProfile({ profileId: profile.id }), (nextState) => {
       setState(nextState);
       setSelected(firstProfile(nextState));
     });
@@ -425,7 +426,7 @@ export function App() {
     const selectedProfiles = state.profiles.filter((profile) => selectedAccountIds.has(profile.id));
     const count = selectedProfiles.length;
     if (count === 0) return;
-    await runAction("Delete selected profiles", async () => {
+    await runAction(copy.messages.deleteSelected, async () => {
       let nextState = state;
       for (const profile of selectedProfiles) {
         nextState = await api.deleteProfile({ profileId: profile.id });
@@ -467,17 +468,19 @@ export function App() {
     if (!api) return;
     setPromptModal({
       open: true,
-      title: "Export Codex account pool",
-      description: "Set a passphrase to encrypt this export (leave blank for unencrypted):",
-      inputLabel: "Passphrase (optional)",
-      placeholder: "Leave blank for unencrypted",
+      title: copy.prompts.exportTitle,
+      description: copy.prompts.exportDescription,
+      inputLabel: copy.prompts.exportPassphraseLabel,
+      placeholder: copy.prompts.exportPassphrasePlaceholder,
       inputType: "password",
-      confirmText: "Export",
+      confirmText: copy.actions.export,
       onSubmit: async (pass) => {
         setPromptModal(null);
-        await runAction("Export profiles", () => api.exportProfiles({ passphrase: pass || undefined }), (result) => {
+        await runAction(copy.messages.exportProfiles, () => api.exportProfiles({ passphrase: pass || undefined }), (result) => {
           if (result && typeof result === "object" && "count" in result && (result as { count: number }).count > 0) {
-            setMessage({ kind: "success", text: `Exported ${(result as { count: number }).count} profile${(result as { count: number }).count === 1 ? "" : "s"}.` });
+            const count = (result as { count: number }).count;
+            const template = count === 1 ? copy.messages.exported : copy.messages.exportedPlural;
+            setMessage({ kind: "success", text: formatMessage(template, { count }) });
             return true;
           }
           return false;
@@ -489,7 +492,7 @@ export function App() {
   async function importProfiles() {
     const api = requireApi(setFatal);
     if (!api) return;
-    setBusy("Preview import");
+    setBusy(copy.messages.previewImport);
     try {
       const preview = await api.previewImport();
       if (!preview) return;
@@ -500,18 +503,19 @@ export function App() {
         const { path } = preview;
         setPromptModal({
           open: true,
-          title: "Import Encrypted Profiles",
-          description: "This export is encrypted. Enter its passphrase to import:",
-          inputLabel: "Passphrase",
-          placeholder: "Enter export passphrase",
+          title: copy.prompts.importEncryptedTitle,
+          description: copy.prompts.importEncryptedDescription,
+          inputLabel: copy.prompts.importPassphraseLabel,
+          placeholder: copy.prompts.importPassphrasePlaceholder,
           inputType: "password",
-          confirmText: "Import",
+          confirmText: copy.actions.import,
           onSubmit: async (pass) => {
             setPromptModal(null);
             if (!pass) return;
-            await runAction("Import profiles", () => api.confirmImport({ path, passphrase: pass }), async (result) => {
+            await runAction(copy.messages.importProfiles, () => api.confirmImport({ path, passphrase: pass }), async (result) => {
               await loadState(false);
-              setMessage({ kind: "success", text: `Imported ${result.count} profile${result.count === 1 ? "" : "s"}. Click USE on any profile to activate it.` });
+              const template = result.count === 1 ? copy.messages.imported : copy.messages.importedPlural;
+              setMessage({ kind: "success", text: formatMessage(template, { count: result.count }) });
               return true;
             });
           },
@@ -521,7 +525,7 @@ export function App() {
       }
       setImportPreview(preview);
     } catch (err) {
-      setMessage({ kind: "error", text: err instanceof Error ? err.message : "Import failed." });
+      setMessage({ kind: "error", text: err instanceof Error ? err.message : copy.messages.importFailed });
     } finally {
       setBusy(undefined);
     }
@@ -531,22 +535,23 @@ export function App() {
     if (!api || !importPreview) return;
     const { path } = importPreview;
     setImportPreview(null);
-    await runAction("Import profiles", () => api.confirmImport({ path }), async (result) => {
+    await runAction(copy.messages.importProfiles, () => api.confirmImport({ path }), async (result) => {
       await loadState(false);
-      setMessage({ kind: "success", text: `Imported ${result.count} profile${result.count === 1 ? "" : "s"}. Click USE on any profile to activate it.` });
+      const template = result.count === 1 ? copy.messages.imported : copy.messages.importedPlural;
+      setMessage({ kind: "success", text: formatMessage(template, { count: result.count }) });
     });
   }
   async function updateSettings(input: SettingsUpdateInput) {
     const api = requireApi(setFatal);
     if (!api) return;
-    setBusy("Save settings");
+    setBusy(copy.messages.saveSettings);
     setMessage(undefined);
     try {
       const nextState = await api.updateSettings(input);
       setState(nextState);
-      setMessage({ kind: "success", text: "Settings saved" });
+      setMessage({ kind: "success", text: copy.messages.settingsSaved });
       window.setTimeout(() => {
-        setMessage((current) => current?.text === "Settings saved" ? undefined : current);
+        setMessage((current) => current?.text === copy.messages.settingsSaved ? undefined : current);
       }, 2000);
     } catch (error) {
       setMessage({ kind: "error", text: errorMessage(error) });
@@ -557,7 +562,7 @@ export function App() {
   async function setServiceRunning(running: boolean) {
     const api = requireApi(setFatal);
     if (!api) return;
-    await runAction(running ? "Start service" : "Stop service", () => api.updateServiceState({ running }), setState);
+    await runAction(running ? copy.messages.startService : copy.messages.stopService, () => api.updateServiceState({ running }), setState);
   }
   async function openLogDirectory() {
     const api = requireApi(setFatal);
@@ -626,7 +631,7 @@ export function App() {
             />
           )}
         </section>
-        {message && <StatusToast message={message} onClose={() => setMessage(undefined)} />}
+        {message && <StatusToast message={message} onClose={() => setMessage(undefined)} closeLabel={copy.actions.closeMessage} />}
         {loginModal.open && (
           <LoginCaptureModal
             loginModal={loginModal}

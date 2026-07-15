@@ -1,6 +1,6 @@
 import { Check } from "lucide-react";
 import { ProfileLoginCapture } from "../shared/types";
-import { copyForLanguage } from "../i18n";
+import { copyForLanguage, formatMessage } from "../i18n";
 
 type UiCopy = ReturnType<typeof copyForLanguage>;
 type LoginFlowStatus = "idle" | "ready" | "waiting" | "error" | "saved";
@@ -37,7 +37,7 @@ export function LoginCaptureModal({
   onChangeProfileName
 }: LoginCaptureModalProps) {
   return (
-    <div className="modal-overlay" role="dialog" aria-modal="true" aria-label="Add account login flow">
+    <div className="modal-overlay" role="dialog" aria-modal="true" aria-label={copy.login.dialogLabel}>
       <div className="modal-card">
         <div className="modal-steps" aria-hidden="true">
           <span className="modal-step-dot active" />
@@ -48,11 +48,11 @@ export function LoginCaptureModal({
             <div className="login-saved-icon" aria-hidden="true">
               <Check size={28} strokeWidth={2.5} />
             </div>
-            <h3>Account added!</h3>
+            <h3>{copy.login.accountAdded}</h3>
             <p className="login-saved-name">{loginModal.message}</p>
-            <p className="modal-status ready">Add another account, or click Done to finish.</p>
+            <p className="modal-status ready">{copy.login.addAnotherHint}</p>
             <div className="modal-actions login-saved-actions">
-              <button onClick={onAddAnother}>Add Another</button>
+              <button onClick={onAddAnother}>{copy.actions.addAnother}</button>
               <button onClick={onDone}>{copy.login.done}</button>
             </div>
           </>
@@ -62,7 +62,9 @@ export function LoginCaptureModal({
             {loginModal.capture && (
               <>
                 <p className="modal-authenticated-email">
-                  Authenticated as {loginModal.capture.accountEmail ?? "your account"}
+                  {formatMessage(copy.login.authenticatedAs, {
+                    email: loginModal.capture.accountEmail ?? copy.login.yourAccount
+                  })}
                 </p>
                 <label className="modal-field">
                   <span>{copy.login.profileName}</span>
@@ -71,7 +73,7 @@ export function LoginCaptureModal({
                     onChange={(event) => onChangeProfileName(event.target.value)}
                     autoFocus
                   />
-                  <small className="modal-field-helper">How this account appears in your list</small>
+                  <small className="modal-field-helper">{copy.login.profileNameHelper}</small>
                 </label>
               </>
             )}
@@ -82,7 +84,7 @@ export function LoginCaptureModal({
                   <p className={`modal-status ${loginModal.status}`}>{loginModal.message}</p>
                 )}
                 {loginModal.authorizationUrl && (
-                  <p className="modal-url">Ready - click Open Login Page to continue.</p>
+                  <p className="modal-url">{copy.login.readyOpenLogin}</p>
                 )}
               </>
             )}

@@ -185,7 +185,7 @@ export function SettingsPage({
                     void onSave({ executablePath: path });
                   }}
                 >
-                  Browse...
+                  {copy.actions.browse}
                 </button>
               </div>
             </label>

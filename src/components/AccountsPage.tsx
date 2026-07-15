@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Download, Import, Plus, RefreshCw, Trash2, Upload } from "lucide-react";
 import { AppState, ProfileSummary } from "../shared/types";
-import { copyForLanguage } from "../i18n";
+import { copyForLanguage, formatMessage } from "../i18n";
 import { buildStats } from "../ui-utils";
 import { StatsBar } from "./StatsBar";
 import { AccountCard } from "./AccountCard";
@@ -63,8 +63,8 @@ export function AccountsPage({
     if (selectedCount === 0) return;
     const confirmed = window.confirm(
       selectedCount === 1
-        ? "Delete 1 account? This cannot be undone."
-        : `Delete ${selectedCount} accounts? This cannot be undone.`
+        ? copy.accounts.deleteOneConfirm
+        : formatMessage(copy.accounts.deleteManyConfirm, { count: selectedCount })
     );
     if (confirmed) {
       void onDeleteSelectedProfiles();
@@ -86,7 +86,7 @@ export function AccountsPage({
         <button
           className="icon-button"
           onClick={() => void onRefreshAll()}
-          title="Refresh all quotas"
+          title={copy.accounts.refreshAllQuotas}
           disabled={refreshingAll}
           aria-busy={refreshingAll}
         >
@@ -96,25 +96,25 @@ export function AccountsPage({
 
       <div className="toolbar">
         <div className="toolbar-actions">
-          <button aria-label="Add Account" title="Add account" onClick={() => void onCreateProfile()}>
+          <button aria-label={copy.actions.addAccount} title={copy.actions.addAccount} onClick={() => void onCreateProfile()}>
             <Plus size={16} /> {copy.actions.add}
           </button>
           
-          <button aria-label="Sync from App" title="Sync from app" onClick={() => void onSyncFromApp()}>
+          <button aria-label={copy.messages.syncFromApp} title={copy.messages.syncFromApp} onClick={() => void onSyncFromApp()}>
             <Download size={16} /> {copy.actions.sync}
           </button>
 
-          <button aria-label="Export Profiles" title="Export profiles" onClick={() => void onExportProfiles()}>
+          <button aria-label={copy.messages.exportProfiles} title={copy.messages.exportProfiles} onClick={() => void onExportProfiles()}>
             <Upload size={16} /> {copy.actions.export}
           </button>
 
-          <button aria-label="Import Profiles" title="Import profiles" onClick={() => void onImportProfiles()}>
+          <button aria-label={copy.messages.importProfiles} title={copy.messages.importProfiles} onClick={() => void onImportProfiles()}>
             <Import size={16} /> {copy.actions.import}
           </button>
           
           {state.profiles.length > 0 && (
             <button 
-              aria-label={allSelected ? "Clear selection" : "Select all"}
+              aria-label={allSelected ? copy.actions.clearSelection : copy.actions.selectAll}
               onClick={onToggleAllAccounts}
             >
               {allSelected ? copy.actions.clear : copy.actions.selectAll}
@@ -124,7 +124,7 @@ export function AccountsPage({
           {selectedCount > 0 && (
             <button 
               className="bulk-delete-button danger-action"
-              aria-label="Delete selected" 
+              aria-label={copy.messages.deleteSelected}
               onClick={handleDeleteSelected}
             >
               <Trash2 size={16} /> {copy.actions.delete} ({selectedCount})
@@ -153,13 +153,13 @@ export function AccountsPage({
           </svg>
           <p className="empty-state-title">{copy.accounts.empty}</p>
           <p className="empty-state-description">
-            Add your first Codex account to start switching between profiles.
+            {copy.accounts.emptyHint}
           </p>
           <button
             className="empty-state-cta"
             onClick={() => void onCreateProfile()}
           >
-            <Plus size={16} /> {copy.actions.add} Account
+            <Plus size={16} /> {copy.actions.addAccount}
           </button>
         </div>
       ) : (
