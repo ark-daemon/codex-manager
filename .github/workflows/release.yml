@@ -1,26 +1,48 @@
 name: Release
 
+# Build each platform independently (no GitHub publish), then attach all
+# artifacts in a single job. This avoids electron-builder race conditions
+# that create multiple draft releases for the same tag when win/mac/linux
+# all run `electron-builder --publish=always` in parallel.
+
 on:
   push:
     tags:
       - 'v*'
   workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Existing tag to release (e.g. v0.1.6). Leave empty to use the pushed tag.'
+        required: false
+        type: string
 
 permissions:
   contents: write
 
 jobs:
-  release:
+  package:
     strategy:
       fail-fast: false
       matrix:
         include:
           - os: windows-latest
             target: win
+            artifact: |
+              dist/*.exe
+              dist/*.blockmap
+              dist/latest.yml
           - os: macos-latest
             target: mac
+            artifact: |
+              dist/*.dmg
+              dist/*.blockmap
+              dist/latest-mac.yml
           - os: ubuntu-latest
             target: linux
+            artifact: |
+              dist/*.deb
+              dist/*.tar.gz
+              dist/latest-linux.yml
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -42,7 +64,63 @@ jobs:
       - name: Build
         run: npm run build
 
-      - name: Package and publish to draft release
-        run: npx electron-builder --${{ matrix.target }} --publish=always
+      # Never publish from matrix jobs — that races and creates split drafts.
+      - name: Package (no publish)
+        run: npx electron-builder --${{ matrix.target }} --publish never
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CSC_IDENTITY_AUTO_DISCOVERY: false
+
+      - name: Upload platform artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: codex-manager-${{ matrix.target }}
+          path: ${{ matrix.artifact }}
+          if-no-files-found: error
+
+  publish:
+    needs: package
+    runs-on: ubuntu-latest
+    steps:
+      - name: Resolve tag
+        id: tag
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ -n "${{ inputs.tag }}" ]; then
+            TAG="${{ inputs.tag }}"
+          elif [[ "${{ github.ref }}" == refs/tags/* ]]; then
+            TAG="${GITHUB_REF_NAME}"
+          else
+            echo "No tag available. Push a v* tag or pass workflow_dispatch input tag."
+            exit 1
+          fi
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "Releasing $TAG"
+
+      - name: Download all platform artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: release-assets
+          merge-multiple: true
+
+      - name: List release assets
+        shell: bash
+        run: |
+          echo "Assets to attach:"
+          find release-assets -type f | sort
+          # Flatten into a single directory for the release action
+          mkdir -p upload
+          find release-assets -type f -exec cp -n {} upload/ \;
+          ls -la upload
+
+      - name: Create GitHub Release (draft) with all assets
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.tag.outputs.tag }}
+          name: ${{ steps.tag.outputs.tag }}
+          draft: true
+          generate_release_notes: true
+          fail_on_unmatched_files: true
+          files: upload/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
