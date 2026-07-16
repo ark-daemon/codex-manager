@@ -1,6 +1,6 @@
 {
  "name": "codex-manager",
- "version": "0.1.8",
+ "version": "0.1.9",
  "private": true,
  "description": "Cross-platform multi-account session manager for OpenAI Codex (ChatGPT desktop shell).",
  "main": "dist-electron/electron/main.js",
