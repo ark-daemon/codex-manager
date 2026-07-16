@@ -81,6 +81,8 @@ export class ProfileStore {
     await hardenDirectoryBestEffort(this.storageRoot);
     // Migrate any plain-text auth.json files left from previous versions.
     await this.migrateAuthFiles();
+    // Cap historical switch backups (can grow multi‑GB if left forever).
+    await this.pruneOldBackups();
   }
   /**
    * Re-seal any plaintext auth.json files after a session passphrase is set.
