@@ -482,6 +482,7 @@ export class ProfileStore {
     const now = new Date().toISOString();
     const backupPath = path.join(this.backupsRoot, `${timestampForPath(now)}-${input.profileId}`);
     await copyProfileToBackup(this.profilePath(input.profileId), backupPath);
+    await this.pruneOldBackups();
     await this.writeManifest({ ...manifest, updatedAt: now, lastBackupAt: now });
     return this.getState();
   }
@@ -847,6 +848,26 @@ export class ProfileStore {
     const now = new Date().toISOString();
     const backupPath = path.join(this.backupsRoot, `${timestampForPath(now)}-live`);
     await copyManagedLiveToBackup(getAppDefinition(), backupPath);
+    await this.pruneOldBackups();
+  }
+  private async pruneOldBackups(): Promise<void> {
+    try {
+      const maxBackups = 10;
+      const entries = await fs.readdir(this.backupsRoot, { withFileTypes: true });
+      const directories = entries
+        .filter((entry) => entry.isDirectory())
+        .map((entry) => entry.name)
+        .sort(); // Lexicographical sort puts older timestamps first
+      if (directories.length > maxBackups) {
+        const toDelete = directories.slice(0, directories.length - maxBackups);
+        for (const dirName of toDelete) {
+          const dirPath = path.join(this.backupsRoot, dirName);
+          await fs.rm(dirPath, { recursive: true, force: true });
+        }
+      }
+    } catch (error) {
+      console.error("Failed to prune old backups:", error);
+    }
   }
   private codexGlobalStatePaths(definition: AppDefinition, profilePath: string): { livePath: string; storedPath: string } | undefined {
     const agentRoot = definition.sourceRoots.find((root) => root.key === "agent");

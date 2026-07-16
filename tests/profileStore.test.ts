@@ -131,6 +131,21 @@ describe("ProfileStore profile lifecycle", () => {
  const backups = await fs.readdir(path.join(tempRoot, "backups", "codex"));
  expect(backups.some((entry) => entry.endsWith("-p1"))).toBe(true);
  });
+  it("prunes old backups when max backups limit is exceeded", async () => {
+    const store = makeStore();
+    await store.initialize();
+    await writeProfile(tempRoot, "p1", "Backup Me", "backup@example.com");
+
+    // Generate 12 backups (with tiny pauses to ensure timestamp order is correct)
+    for (let i = 0; i < 12; i++) {
+      await new Promise((resolve) => setTimeout(resolve, 2));
+      await store.backupProfile({ profileId: "p1" });
+    }
+
+    const backups = await fs.readdir(path.join(tempRoot, "backups", "codex"));
+    // The default limit is 10, so it should prune down to exactly 10
+    expect(backups.length).toBe(10);
+  });
  it("loads a profile with missing or corrupt auth.json without crashing", async () => {
  const store = makeStore();
  await store.initialize();
