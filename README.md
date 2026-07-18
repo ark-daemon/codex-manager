@@ -13,6 +13,11 @@
   [![License: MIT](https://img.shields.io/badge/License-MIT-yellow?style=flat-square)](./LICENSE)
 
   [Download](#installation) • [Features](#features) • [How it works](#how-it-works) • [Security](#security) • [Development](#development)
+
+  <br/>
+  <br/>
+
+  <img src="assets/readme.png" width="800" alt="Codex Manager Screenshot" />
 </div>
 
 ---
