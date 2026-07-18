@@ -22,7 +22,7 @@
 
 ---
 
-Codex Manager is a cross-platform desktop app (Windows, macOS, Linux) for keeping multiple OpenAI Codex accounts ready and switching between them in about two seconds — without editing config files by hand.
+Codex Manager is a cross-platform desktop app (Windows, macOS, Linux) for keeping multiple OpenAI Codex accounts ready and switching between them in about two seconds, without editing config files by hand.
 
 It encrypts stored credentials, snapshots per-account Codex state under `~/.codex`, and hot-swaps the active profile while closing and relaunching the desktop app cleanly.
 
@@ -46,22 +46,22 @@ Download the latest release for your platform from the [Releases page](https://g
 | **macOS** | `Codex Manager-x.x.x.dmg` |
 | **Linux** | `codex-manager_x.x.x.deb` or `.tar.gz` |
 
-The app checks for updates on launch and asks before downloading — no silent background updates.
+The app checks for updates on launch and asks before downloading (no silent background updates).
 
 > [!IMPORTANT]
 > **Linux:** encrypted auth storage needs `libsecret-1`. Install with `sudo apt install libsecret-1-0` (Debian/Ubuntu) or your distro’s equivalent. If no keyring is available, set a session passphrase (AES-256-GCM) when prompted.
 
 ## Features
 
-- **Instant switching** — decrypts the target profile, writes it into `~/.codex`, fully quits ChatGPT/Codex, then relaunches
-- **Usage polling** — refreshes each account’s quota on an interval (default 20 minutes) with five-hour, weekly, monthly, and credit windows plus reset countdowns
-- **Auto-switch** — when the active account drops below a threshold (default 10%), picks the highest-quota ready account
-- **Silent token refresh** — refreshes expired JWT access before a switch when a refresh token is available
-- **Login capture** — opens the browser login flow, captures auth + session files, and saves a named profile
-- **Import / export** — backup all profiles to a versioned JSON bundle; optional passphrase encryption for the export file
-- **System tray** — quick switch, quota summary, and background service toggle; closes to tray by default
-- **Desktop notifications** — low-quota and “available again” alerts on Windows and macOS
-- **Dark / light theme** — follows the OS with a Settings override
+- **Instant switching:** decrypts the target profile, writes it into `~/.codex`, fully quits ChatGPT/Codex, then relaunches
+- **Usage polling:** refreshes each account’s quota on an interval (default 20 minutes) with five-hour, weekly, monthly, and credit windows plus reset countdowns
+- **Auto-switch:** when the active account drops below a threshold (default 10%), picks the highest-quota ready account
+- **Silent token refresh:** refreshes expired JWT access before a switch when a refresh token is available
+- **Login capture:** opens the browser login flow, captures auth + session files, and saves a named profile
+- **Import / export:** backup all profiles to a versioned JSON bundle; optional passphrase encryption for the export file
+- **System tray:** quick switch, quota summary, and background service toggle; closes to tray by default
+- **Desktop notifications:** low-quota and “available again” alerts on Windows and macOS
+- **Dark / light theme:** follows the OS with a Settings override
 
 ## How it works
 
@@ -86,11 +86,11 @@ Conversation history is intentionally **not** forked per account: Codex stores t
 
 Threat model: a local attacker with filesystem access, and a compromised renderer process.
 
-- **Encryption at rest** — auth files use Electron `safeStorage` (Windows DPAPI, macOS Keychain, Linux libsecret), marked with a `CMENC1:` prefix
-- **Passphrase fallback** — if no OS keychain is available, auth is sealed with AES-256-GCM (`CMPWD1:`) using a session passphrase you enter each launch
-- **Fails closed** — without keychain or passphrase, credentials are not written as plaintext
-- **Hardened renderer** — `contextIsolation`, no Node in the page, `sandbox`, navigation blocked; IPC only accepted from the app’s own frames
-- **Minimal network** — `auth.openai.com` (token refresh) and `chatgpt.com` (quota)
+- **Encryption at rest:** auth files use Electron `safeStorage` (Windows DPAPI, macOS Keychain, Linux libsecret), marked with a `CMENC1:` prefix
+- **Passphrase fallback:** if no OS keychain is available, auth is sealed with AES-256-GCM (`CMPWD1:`) using a session passphrase you enter each launch
+- **Fails closed:** without keychain or passphrase, credentials are not written as plaintext
+- **Hardened renderer:** `contextIsolation`, no Node in the page, `sandbox`, navigation blocked; IPC only accepted from the app’s own frames
+- **Minimal network:** `auth.openai.com` (token refresh) and `chatgpt.com` (quota)
 
 > [!CAUTION]
 > Export bundles contain account tokens and are **always encrypted** with a passphrase you choose. Treat the file and the passphrase like credentials. Legacy plaintext exports (older versions) can still be imported.
