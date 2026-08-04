@@ -38,7 +38,7 @@ export function formatMessage(template: string, vars: Record<string, string | nu
 export function copyForLanguage(language?: string) {
   const en = {
     startup: {
-      loading: "Loading Codex Manager...",
+      loading: "Loading Relay...",
       retry: "Try restarting the app. If this keeps happening, share this message.",
       bridgeMissing: "Renderer bridge is not available. Preload may not have loaded."
     },
@@ -228,7 +228,7 @@ export function copyForLanguage(language?: string) {
 
   const zh = {
     startup: {
-      loading: "正在加载 Codex Manager...",
+      loading: "正在加载 Relay...",
       retry: "请重启应用。如果问题持续，请分享此错误信息。",
       bridgeMissing: "渲染进程桥接不可用。预加载脚本可能未加载。"
     },
@@ -418,7 +418,7 @@ export function copyForLanguage(language?: string) {
 
   const ja = {
     startup: {
-      loading: "Codex Manager を読み込み中...",
+      loading: "Relay を読み込み中...",
       retry: "アプリを再起動してください。問題が続く場合は、このメッセージを共有してください。",
       bridgeMissing: "レンダラー橋渡しが利用できません。プリロードが読み込まれていない可能性があります。"
     },
@@ -608,7 +608,7 @@ export function copyForLanguage(language?: string) {
 
   const ko = {
     startup: {
-      loading: "Codex Manager 로딩 중...",
+      loading: "Relay 로딩 중...",
       retry: "앱을 다시 시작하세요. 문제가 계속되면 이 메시지를 공유하세요.",
       bridgeMissing: "렌더러 브리지를 사용할 수 없습니다. 프리로드가 로드되지 않았을 수 있습니다."
     },

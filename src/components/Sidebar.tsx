@@ -48,7 +48,7 @@ export function Sidebar({
             <path d="M8 13v.01" />
             <path d="M11 16v.01" />
           </svg>
-          <h1>Codex Manager</h1>
+          <h1>Relay</h1>
         </div>
       </div>
 

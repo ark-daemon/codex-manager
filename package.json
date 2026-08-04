@@ -1,8 +1,8 @@
 {
- "name": "codex-manager",
+ "name": "relay",
  "version": "0.1.9",
  "private": true,
- "description": "Cross-platform multi-account session manager for OpenAI Codex (ChatGPT desktop shell).",
+ "description": "Account switcher for the ChatGPT desktop app.",
  "main": "dist-electron/electron/main.js",
  "type": "module",
  "scripts": {
@@ -15,7 +15,7 @@
  "dist:linux": "npm run build && electron-builder --linux"
  },
  "author": {
- "name": "Codex Manager",
+ "name": "Relay",
  "email": "arkucrypto@gmail.com"
  },
  "dependencies": {
@@ -40,7 +40,7 @@
  "vitest": "^4.0.15"
  },
  "build": {
- "appId": "com.codexmanager.app",
+ "appId": "com.relay.app",
  "publish": [
  {
  "provider": "github",
@@ -49,7 +49,7 @@
  "releaseType": "draft"
  }
  ],
- "productName": "Codex Manager",
+ "productName": "Relay",
  "asar": true,
  "compression": "maximum",
  "files": [
@@ -74,7 +74,7 @@
  },
  "linux": {
  "icon": "assets/icon.png",
- "maintainer": "Codex Manager <arkucrypto@gmail.com>",
+ "maintainer": "Relay <arkucrypto@gmail.com>",
  "category": "Utility",
  "target": [
  "deb",

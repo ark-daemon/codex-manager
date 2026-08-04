@@ -1,6 +1,6 @@
-# Contributing to Codex Manager
+# Contributing to Relay
 
-Thanks for your interest in improving Codex Manager. This is a community-driven, open-source project and contributions of all kinds are welcome: bug reports, feature ideas, docs, and code.
+Thanks for your interest in improving Relay. This is a community-driven, open-source project and contributions of all kinds are welcome: bug reports, feature ideas, docs, and code.
 
 ## Ways to contribute
 

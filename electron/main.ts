@@ -39,9 +39,9 @@ let activeProfileSyncer: ActiveProfileSyncer;
 let tray: Tray | undefined;
 let quitting = false;
 
-app.setName("Codex Manager");
+app.setName("Relay");
 if (process.platform === "win32") {
-  app.setAppUserModelId("Codex Manager");
+  app.setAppUserModelId("Relay");
 }
 Menu.setApplicationMenu(null);
 
@@ -100,7 +100,7 @@ function createWindow(): BrowserWindow {
     height: 760,
     minWidth: 900,
     minHeight: 600,
-    title: "Codex Manager",
+    title: "Relay",
     icon: appIconPath,
     autoHideMenuBar: true,
     backgroundColor: "#0A0A0F",
@@ -113,7 +113,7 @@ function createWindow(): BrowserWindow {
     }
   });
   window.setIcon(appIconPath);
-  window.setTitle("Codex Manager");
+  window.setTitle("Relay");
 
   if (process.env.VITE_DEV_SERVER_URL) {
     void window.loadURL(process.env.VITE_DEV_SERVER_URL);
@@ -337,7 +337,7 @@ function showMainWindow(): void {
 
 function createTray(): void {
   tray = new Tray(trayIconPath);
-  tray.setToolTip("Codex Manager");
+  tray.setToolTip("Relay");
   tray.on("click", showMainWindow);
   updateTrayMenu();
 }
@@ -350,7 +350,7 @@ async function updateTrayMenu(): Promise<void> {
   const state = await profileStore.getState().catch(() => undefined);
   const profiles = state?.profiles ?? [];
   const active = profiles.find((profile) => profile.isActive);
-  tray.setToolTip("Codex Manager");
+  tray.setToolTip("Relay");
   tray.setContextMenu(Menu.buildFromTemplate([
     { label: `Current: ${activeAccountLabel(active)}`, enabled: false },
     { label: `Quota: ${quotaLabel(active)}`, enabled: false },
@@ -468,7 +468,7 @@ function showTrayNotification(body: string): void {
   if (!Notification.isSupported()) {
     return;
   }
-  new Notification({ title: "Codex Manager", body }).show();
+  new Notification({ title: "Relay", body }).show();
 }
 
 app.whenReady().then(async () => {
@@ -536,7 +536,7 @@ function initializeAutoUpdater(): void {
     dialog.showMessageBox(mainWindow, {
       type: "info",
       title: "Update Available",
-      message: `Version ${info.version} of Codex Manager is available. Download it now?`,
+      message: `Version ${info.version} of Relay is available. Download it now?`,
       buttons: ["Download", "Not Now"],
       defaultId: 0,
       cancelId: 1
@@ -557,7 +557,7 @@ function initializeAutoUpdater(): void {
     dialog.showMessageBox(mainWindow, {
       type: "info",
       title: "Update Ready",
-      message: `Version ${info.version} of Codex Manager has been downloaded. Restart the application now to install the update?`,
+      message: `Version ${info.version} of Relay has been downloaded. Restart the application now to install the update?`,
       buttons: ["Restart Now", "Later"],
       defaultId: 0,
       cancelId: 1

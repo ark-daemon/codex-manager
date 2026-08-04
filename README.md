@@ -1,10 +1,10 @@
 <div align="center">
-  <img src="assets/icon.png" width="96" alt="Codex Manager" />
+  <img src="assets/icon.png" width="96" alt="Relay" />
 
-  # Codex Manager
+  # Relay
 
-  **Multi-account session manager for OpenAI Codex**  
-  *Works with the ChatGPT desktop shell · session data in `~/.codex`*
+  **Account switcher for the ChatGPT desktop app**  
+  *Hot-swaps session data in `~/.codex` with encrypted profiles & automatic failover*
 
   [![Release](https://img.shields.io/github/v/release/ark-daemon/codex-manager?style=flat-square)](https://github.com/ark-daemon/codex-manager/releases)
   [![Build](https://img.shields.io/github/actions/workflow/status/ark-daemon/codex-manager/build.yml?style=flat-square&label=Build)](https://github.com/ark-daemon/codex-manager/actions)
@@ -17,12 +17,12 @@
   <br/>
   <br/>
 
-  <img src="assets/readme.png" width="800" alt="Codex Manager Screenshot" />
+  <img src="assets/readme.png" width="800" alt="Relay Screenshot" />
 </div>
 
 ---
 
-Codex Manager is a cross-platform desktop app (Windows, macOS, Linux) for keeping multiple OpenAI Codex accounts ready and switching between them in about two seconds, without editing config files by hand.
+Relay is a cross-platform desktop app (Windows, macOS, Linux) for keeping multiple ChatGPT / Codex accounts ready and switching between them in about two seconds, without editing config files by hand.
 
 It encrypts stored credentials, snapshots per-account Codex state under `~/.codex`, and hot-swaps the active profile while closing and relaunching the desktop app cleanly.
 
@@ -42,9 +42,9 @@ Download the latest release for your platform from the [Releases page](https://g
 
 | Platform | Package |
 |----------|---------|
-| **Windows** | `Codex Manager Setup x.x.x.exe` (NSIS) or portable `.exe` |
-| **macOS** | `Codex Manager-x.x.x.dmg` |
-| **Linux** | `codex-manager_x.x.x.deb` or `.tar.gz` |
+| **Windows** | `Relay Setup x.x.x.exe` (NSIS) or portable `.exe` |
+| **macOS** | `Relay-x.x.x.dmg` |
+| **Linux** | `relay_x.x.x.deb` or `.tar.gz` |
 
 The app checks for updates on launch and asks before downloading (no silent background updates).
 
@@ -65,7 +65,7 @@ The app checks for updates on launch and asks before downloading (no silent back
 
 ## How it works
 
-Profiles are stored under the Codex Manager data directory (see below). On switch, the app:
+Profiles are stored under the Relay data directory (see below). On switch, the app:
 
 1. Closes the desktop shell (`ChatGPT.exe` / `Codex` / helper `codex` processes)
 2. Saves the previous account’s managed files back into its profile folder
@@ -99,13 +99,13 @@ To report a vulnerability, **do not open a public issue**. Email `arkucrypto@gma
 
 ## Compatibility
 
-OpenAI renames shell binaries and package layouts occasionally. Codex Manager matches:
+OpenAI renames shell binaries and package layouts occasionally. Relay matches:
 
 - Process names: `ChatGPT`, `Codex`, `codex`
 - MSIX package: `OpenAI.Codex` (fallback `OpenAI.ChatGPT` if renamed)
 - Session root: `~/.codex`
 
-If a future desktop update changes process names or paths again, switches may fail until Codex Manager is updated. Open an issue with your OS, app version, and process list.
+If a future desktop update changes process names or paths again, switches may fail until Relay is updated. Open an issue with your OS, app version, and process list.
 
 ## Development
 
