@@ -237,7 +237,7 @@ export const AccountCard = memo(function AccountCard({
               <div className="quota-minimal-row">
                 <div className="quota-info">
                   <span className="quota-pool-label">
-                    {primaryPool.label === "Monthly" || primaryPool.id.includes("monthly") ? copy.quota.usageRemaining : primaryPool.label}
+                    {primaryPool.label}
                     {hasMultiplePools && (
                       <span className="quota-multiple-indicator">
                         {" "}
