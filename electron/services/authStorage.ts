@@ -265,7 +265,7 @@ export async function writeAuthFile(filePath: string, content: string): Promise<
   // Neither keychain nor passphrase: refuse. Caller should prompt to unlock.
   throw new PassphraseRequiredError(
     "Cannot store credentials securely: no OS keychain is available and no session passphrase has been set. " +
-    "Unlock Codex Manager with a passphrase to continue."
+    "Unlock Relay with a passphrase to continue."
   );
 }
 

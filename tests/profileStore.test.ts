@@ -437,12 +437,12 @@ describe("ProfileStore settings and import/export", () => {
  expect(preview.profiles.find((p) => p.name === "Alice")?.email).toBe("alice@example.com");
  expect(preview.profiles.find((p) => p.name === "Bob")?.email).toBeUndefined();
  });
- it("previewImportFrom throws user-friendly error for non-codex-manager files", async () => {
+ it("previewImportFrom throws user-friendly error for non-relay files", async () => {
  const store = makeStore();
  await store.initialize();
  const wrongPath = path.join(tempRoot, "wrong.json");
  await fs.writeFile(wrongPath, JSON.stringify({ exportedBy: "something-else", profiles: [] }), "utf8");
- await expect(store.previewImportFrom(wrongPath)).rejects.toThrow("This file doesn't look like a Codex Manager export.");
+ await expect(store.previewImportFrom(wrongPath)).rejects.toThrow("This file doesn't look like a Relay export.");
  });
  it("rejects malformed import JSON without crashing", async () => {
  const store = makeStore();

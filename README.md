@@ -3,7 +3,7 @@
 
   # Relay
 
-  **Account switcher for the ChatGPT desktop app**  
+  **Session manager for ChatGPT Desktop**  
   *Hot-swaps session data in `~/.codex` with encrypted profiles & automatic failover*
 
   [![Release](https://img.shields.io/github/v/release/ark-daemon/codex-manager?style=flat-square)](https://github.com/ark-daemon/codex-manager/releases)
@@ -146,8 +146,8 @@ scripts/            # Icons, assets, post-build
 
 | OS | Path |
 |----|------|
-| Windows | `%LOCALAPPDATA%\CodexManager\` |
-| macOS | `~/Library/Application Support/CodexManager/` |
-| Linux | `~/.config/CodexManager/` |
+| Windows | `%LOCALAPPDATA%\Relay\` |
+| macOS | `~/Library/Application Support/Relay/` |
+| Linux | `~/.config/Relay/` |
 
-Live Codex session files remain in `~/.codex` (managed on switch; not the same as the Codex Manager store above).
+Live Codex session files remain in `~/.codex` (managed on switch; not the same as the Relay store above).

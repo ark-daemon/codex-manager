@@ -49,7 +49,7 @@ interface ExportedProfile {
   authJson: string | null;
 }
 interface ExportBundle {
-  exportedBy: "codex-manager";
+  exportedBy: "relay" | "codex-manager";
   version: "1.0";
   exportedAt: string;
   profiles: ExportedProfile[];
@@ -344,7 +344,7 @@ export class ProfileStore {
         this.requireProfileAuthJson(input.profileId)
       );
       if (isTokenExpired(targetAuthJson)) {
-        console.warn(`[CodexManager switch] ${switchContext}: target auth token is expired \u2014 attempting refresh`);
+        console.warn(`[Relay switch] ${switchContext}: target auth token is expired \u2014 attempting refresh`);
         const refreshToken = targetAuthJson.tokens?.refresh_token;
         if (refreshToken) {
           const refreshed = await this.runSwitchStep("refreshing expired auth token", switchContext, () =>
@@ -394,10 +394,10 @@ export class ProfileStore {
             // always contains encrypted credentials, never plain text.
             const prevAuthPath = path.join(previousPath, "codex-agent", "auth.json");
             await migrateAuthFile(prevAuthPath);
-            console.info(`[CodexManager switch] saved live state back to profile ${previousActiveId}`);
+            console.info(`[Relay switch] saved live state back to profile ${previousActiveId}`);
           } catch {
             // Previous profile folder gone \u2014 skip silently.
-            console.warn(`[CodexManager switch] could not save previous profile ${previousActiveId} \u2014 skipping`);
+            console.warn(`[Relay switch] could not save previous profile ${previousActiveId} \u2014 skipping`);
           }
         }
       });
@@ -443,14 +443,14 @@ export class ProfileStore {
       // Run quota refresh in the background; the UI will pick it up on the next
       // state-changed broadcast triggered by the refresh persisting to disk.
       void this.refreshCodexUsageFromLive(input).then(() => {
-        console.info(`[CodexManager switch] background quota refresh complete for ${input.profileId}`);
+        console.info(`[Relay switch] background quota refresh complete for ${input.profileId}`);
       }).catch((err: unknown) => {
-        console.warn(`[CodexManager switch] background quota refresh failed: ${err}`);
+        console.warn(`[Relay switch] background quota refresh failed: ${err}`);
       });
       return { profile: profile ?? { ...manifest, isActive: true } };
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      console.error(`[CodexManager switch] failed ${switchContext}: ${message}`, error);
+      console.error(`[Relay switch] failed ${switchContext}: ${message}`, error);
       throw error instanceof Error ? error : new Error(message);
     }
   }
@@ -465,7 +465,7 @@ export class ProfileStore {
       try {
         await fs.access(candidate);
         if (configuredPath && candidate !== configuredPath) {
-          console.warn(`[CodexManager switch] configured Codex / ChatGPT executable was unavailable, using detected path: ${candidate}`);
+          console.warn(`[Relay switch] configured Codex / ChatGPT executable was unavailable, using detected path: ${candidate}`);
         }
         return candidate;
       } catch (error) {
@@ -689,7 +689,7 @@ export class ProfileStore {
     const profiles = await this.listProfiles();
     const activeProfileId = (await this.settingsStore.read()).activeProfileId;
     const bundle: ExportBundle = {
-      exportedBy: "codex-manager",
+      exportedBy: "relay",
       version: "1.0",
       exportedAt: new Date().toISOString(),
       profiles: []
@@ -733,11 +733,11 @@ export class ProfileStore {
       throw err instanceof Error ? err : new Error("Could not read the selected file. Make sure it is a valid JSON file.");
     }
     if (!raw || typeof raw !== "object") {
-      throw new Error("This file doesn't look like a Codex Manager export.");
+      throw new Error("This file doesn't look like a Relay export.");
     }
     const bundle = raw as Record<string, unknown>;
-    if (bundle["exportedBy"] !== "codex-manager" || !Array.isArray(bundle["profiles"])) {
-      throw new Error("This file doesn't look like a Codex Manager export.");
+    if ((bundle["exportedBy"] !== "relay" && bundle["exportedBy"] !== "codex-manager") || !Array.isArray(bundle["profiles"])) {
+      throw new Error("This file doesn't look like a Relay export.");
     }
     const profiles = (bundle["profiles"] as unknown[]).flatMap((entry) => {
       if (!entry || typeof entry !== "object") return [];
@@ -768,8 +768,8 @@ export class ProfileStore {
       throw err instanceof Error ? err : new Error("Could not read the selected file.");
     }
     const bundle = raw as Record<string, unknown>;
-    if (!bundle || bundle["exportedBy"] !== "codex-manager" || !Array.isArray(bundle["profiles"])) {
-      throw new Error("This file doesn't look like a Codex Manager export.");
+    if (!bundle || (bundle["exportedBy"] !== "relay" && bundle["exportedBy"] !== "codex-manager") || !Array.isArray(bundle["profiles"])) {
+      throw new Error("This file doesn't look like a Relay export.");
     }
     let count = 0;
     for (const entry of (bundle["profiles"] as unknown[])) {
@@ -937,14 +937,14 @@ export class ProfileStore {
     await fs.writeFile(paths.storedPath, config, "utf8");
   }
   private async runSwitchStep<T>(step: string, context: string, action: () => Promise<T>): Promise<T> {
-    console.info(`[CodexManager switch] ${context}: ${step}...`);
+    console.info(`[Relay switch] ${context}: ${step}...`);
     try {
       const result = await action();
-      console.info(`[CodexManager switch] ${context}: ${step} complete`);
+      console.info(`[Relay switch] ${context}: ${step} complete`);
       return result;
     } catch (error) {
       const detail = error instanceof Error ? error.message : String(error);
-      console.error(`[CodexManager switch] ${context}: ${step} failed: ${detail}`, error);
+      console.error(`[Relay switch] ${context}: ${step} failed: ${detail}`, error);
       throw new Error(`Switch failed while ${step}: ${detail}`);
     }
   }

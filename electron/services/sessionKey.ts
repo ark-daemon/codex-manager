@@ -23,7 +23,7 @@ export const CMPWD_MAGIC = Buffer.from("CMPWD1:", "ascii");
 
 /** Thrown by seal/open helpers when no session passphrase has been set yet. */
 export class PassphraseRequiredError extends Error {
-  constructor(message = "A session passphrase is required. Unlock Codex Manager to continue.") {
+  constructor(message = "A session passphrase is required. Unlock Relay to continue.") {
     super(message);
     this.name = "PassphraseRequiredError";
   }
@@ -75,7 +75,7 @@ export function isPassphraseSealed(raw: Buffer): boolean {
  */
 export async function openWithSession(raw: Buffer): Promise<string> {
   if (!isPassphraseSealed(raw)) {
-    throw new Error("File is not a passphrase-sealed Codex Manager auth file.");
+    throw new Error("File is not a passphrase-sealed Relay auth file.");
   }
   if (!hasSessionPassphrase()) {
     throw new PassphraseRequiredError();

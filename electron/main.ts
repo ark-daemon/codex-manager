@@ -28,7 +28,7 @@ import { hasSessionPassphrase, setSessionPassphrase } from "./services/sessionKe
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const envPaths = getEnvPaths();
-const storageRoot = path.join(envPaths.localAppData, "CodexManager");
+const storageRoot = path.join(envPaths.localAppData, "Relay");
 const appIconPath = path.join(__dirname, "..", "assets", "icon.png");
 const trayIconPath = path.join(__dirname, "..", "assets", "tray-icon.png");
 

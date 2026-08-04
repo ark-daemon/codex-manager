@@ -342,7 +342,7 @@ export function SettingsPage({
       {settingsTab === "proxy" && (
         <div className="settings-grid">
           <div className="settings-description-card">
-            Upstream Proxy routes Codex Manager network requests through your proxy server. Use this when your network requires a proxy for outbound access, or when you want traffic to follow an existing proxy policy.
+            Upstream Proxy routes Relay network requests through your proxy server. Use this when your network requires a proxy for outbound access, or when you want traffic to follow an existing proxy policy.
           </div>
           <section className="settings-panel">
             <h3>{copy.settings.proxy}</h3>

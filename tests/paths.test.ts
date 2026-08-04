@@ -16,7 +16,7 @@ describe("isAllowedCodexExecutableBasename", () => {
 
   it("rejects unrelated executables", () => {
     expect(isAllowedCodexExecutableBasename("malicious.exe")).toBe(false);
-    expect(isAllowedCodexExecutableBasename("Codex Manager.exe")).toBe(false);
+    expect(isAllowedCodexExecutableBasename("Relay.exe")).toBe(false);
     expect(isAllowedCodexExecutableBasename("chrome.exe")).toBe(false);
   });
 });

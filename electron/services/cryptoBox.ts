@@ -102,7 +102,7 @@ export async function sealJson(value: unknown, passphrase: string): Promise<Secu
  */
 export async function openJson<T = unknown>(envelope: SecureEnvelope, passphrase: string): Promise<T> {
   if (!isSecureEnvelope(envelope)) {
-    throw new Error("This data is not a valid encrypted Codex Manager envelope.");
+    throw new Error("This data is not a valid encrypted Relay envelope.");
   }
   const salt = Buffer.from(envelope.kdf.salt, "base64");
   const iv = Buffer.from(envelope.iv, "base64");

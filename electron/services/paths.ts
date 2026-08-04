@@ -63,7 +63,7 @@ export function getAppDefinition(env: EnvPaths = getEnvPaths()): AppDefinition {
   const defaultExecutablePath = detectCodexExecutablePath(env);
   const msixAumid = process.platform === "win32" ? detectCodexMsixAumid() : undefined;
   return {
-    // Product brand stays Codex Manager; display name reflects the desktop shell users see.
+    // Product brand is Relay; display name reflects the desktop shell users see.
     displayName: "Codex / ChatGPT",
     processNames: getCodexProcessNames(),
     defaultExecutablePath,
@@ -304,7 +304,7 @@ function discoverOpenAICodexBinExecutables(env: EnvPaths): string[] {
  *
  * After the 2026 OpenAI rebrand, the Windows GUI process is `ChatGPT.exe`
  * while the agent helper remains `codex.exe`. Both must be matched — otherwise
- * Codex Manager thinks the app is stopped while ChatGPT is still holding
+ * Relay thinks the app is stopped while ChatGPT is still holding
  * ~/.codex open, and the switch races into a crash.
  */
 function getCodexProcessNames(): string[] {

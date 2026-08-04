@@ -186,7 +186,7 @@ export class CodexLoginCaptureService {
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Login complete — Codex Manager</title>
+    <title>Login complete — Relay</title>
     <style>
       *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
       body {
@@ -242,7 +242,7 @@ export class CodexLoginCaptureService {
     <div class="card">
       <div class="icon">✓</div>
       <h1>Account connected</h1>
-      <p>You can close this tab and return to Codex Manager.</p>
+      <p>You can close this tab and return to Relay.</p>
       <p class="closing-note" id="closing-note">Closing in 3 seconds...</p>
     </div>
     <script>
