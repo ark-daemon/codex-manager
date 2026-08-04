@@ -95,23 +95,28 @@ export function copyForLanguage(language?: string) {
       refreshAllQuotas: "Refresh all quotas"
     },
     stats: {
-      total: "Total Accounts",
+      total: "Accounts",
       active: "Active",
+      ready: "Ready",
       rateLimited: "Rate Limited",
       unavailable: "Unavailable",
-      globalQuota: "Global Quota",
+      globalQuota: "Lowest Remaining",
+      lowestRemaining: "Lowest Remaining",
       activeQuota: "Active quota",
       none: "None"
     },
     quota: {
       unavailable: "Quota unavailable",
       credits: "Credits",
-      monthly: "Monthly"
+      monthly: "Usage Remaining",
+      usageRemaining: "Usage Remaining",
+      monthlyRemaining: "Monthly Remaining"
     },
     status: {
       active: "Active",
       ready: "Ready",
       limited: "Rate Limited",
+      idle: "Idle",
       expired: "Token expired",
       unknown: "Unknown"
     },

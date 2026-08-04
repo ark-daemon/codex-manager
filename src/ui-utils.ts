@@ -91,36 +91,71 @@ export function availablePools(usage: UsageSnapshot | undefined): QuotaPool[] {
 }
 
 export function buildStats(state: AppState | undefined) {
- if (!state) {
- return { total: 0, active: 0, rateLimited: 0, unavailable: 0, globalQuotaPercent: undefined as number | undefined };
- }
+  if (!state) {
+    return { total: 0, active: 0, ready: 0, rateLimited: 0, unavailable: 0, globalQuotaPercent: undefined as number | undefined, lowestRemainingPercent: undefined as number | undefined };
+  }
 
- const statuses = state.profiles.map((profile) => statusForProfile(profile));
- const availablePercents = state.profiles
- .map((profile) => quotaPercent(profile.usage))
- .filter((value): value is number => typeof value === "number");
- const unavailable = state.profiles.filter((profile) => {
- if (profile.usage?.status === "unavailable") {
- return true;
- }
- return statusForProfile(profile) === "unknown";
- }).length;
+  const statuses = state.profiles.map((profile) => statusForProfile(profile));
+  const availablePercents = state.profiles
+    .map((profile) => quotaPercent(profile.usage))
+    .filter((value): value is number => typeof value === "number");
+  const unavailable = state.profiles.filter((profile) => {
+    if (profile.usage?.status === "unavailable") {
+      return true;
+    }
+    return statusForProfile(profile) === "unknown";
+  }).length;
 
- return {
- total: state.profiles.length,
- active: statuses.filter((status) => status === "active").length,
- rateLimited: statuses.filter((status) => status === "limited").length,
- unavailable,
- globalQuotaPercent: availablePercents.length
- ? availablePercents.reduce((sum, value) => sum + value, 0) / availablePercents.length
- : undefined
- };
+  const lowestRemainingPercent = availablePercents.length
+    ? Math.min(...availablePercents)
+    : undefined;
+
+  return {
+    total: state.profiles.length,
+    active: statuses.filter((status) => status === "active").length,
+    ready: statuses.filter((status) => status === "ready").length,
+    rateLimited: statuses.filter((status) => status === "limited").length,
+    unavailable,
+    globalQuotaPercent: availablePercents.length
+      ? availablePercents.reduce((sum, value) => sum + value, 0) / availablePercents.length
+      : undefined,
+    lowestRemainingPercent
+  };
+}
+
+export function getAvatarInitial(name: string, email?: string): string {
+  const cleanName = name.trim();
+  if (cleanName && cleanName.toLowerCase() !== email?.toLowerCase()) {
+    const parts = cleanName.split(/\s+/);
+    if (parts.length >= 2 && parts[0][0] && parts[1][0]) {
+      return (parts[0][0] + parts[1][0]).toUpperCase();
+    }
+    return cleanName[0].toUpperCase();
+  }
+  if (email && email.trim()) {
+    return email.trim()[0].toUpperCase();
+  }
+  return "A";
+}
+
+export function formatRelativeTime(dateStr?: string): string {
+  if (!dateStr) return "never";
+  const timestamp = new Date(dateStr).getTime();
+  if (Number.isNaN(timestamp)) return "never";
+  const diffMs = Date.now() - timestamp;
+  if (diffMs < 0 || diffMs < 30_000) return "Just now";
+  const minutes = Math.floor(diffMs / 60_000);
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  if (days < 30) return `${days}d ago`;
+  return formatDate(dateStr);
 }
 
 /**
  * Colour for a quota progress bar.
  *
- * Design note: rate-limited is a NORMAL, self-healing state \u2014 the account's
  * quota resets on a timer \u2014 so it must not be painted alarm-red. A grid of
  * cycling accounts should read as "waiting", not "broken". We use amber for
  * both rate-limited and low-but-live quota, and the brand orange for healthy

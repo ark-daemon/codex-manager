@@ -11,31 +11,29 @@ interface StatsBarProps {
 }
 
 export const StatsBar = memo(function StatsBar({ stats, copy }: StatsBarProps) {
-  const percent = stats.globalQuotaPercent ?? 0;
+  const percent = stats.lowestRemainingPercent ?? stats.globalQuotaPercent ?? 0;
 
   return (
     <div className="stats-bar">
       <div className="stat-box">
-        <span>{copy.stats.active}</span>
-        <strong>{stats.active}</strong>
-      </div>
-      <div className="stat-box">
-        <span>{copy.stats.total}</span>
         <strong>{stats.total}</strong>
+        <span>{copy.stats.total}</span>
       </div>
       <div className="stat-box">
-        <span>{copy.stats.rateLimited}</span>
+        <strong className="ready-stat-text">{stats.ready}</strong>
+        <span>{copy.stats.ready}</span>
+      </div>
+      <div className="stat-box">
         <strong className={stats.rateLimited > 0 ? "warning-text" : ""}>
           {stats.rateLimited}
         </strong>
+        <span>{copy.stats.rateLimited}</span>
       </div>
       <div className="stat-box wide global-quota-stat">
-        <span>{copy.stats.globalQuota}</span>
-        {stats.globalQuotaPercent !== undefined ? (
-          <strong>{Math.round(stats.globalQuotaPercent)}%</strong>
-        ) : (
-          <strong>—</strong>
-        )}
+        <div className="stat-header">
+          <strong>{stats.lowestRemainingPercent !== undefined ? `${Math.round(stats.lowestRemainingPercent)}%` : "—"}</strong>
+          <span>{copy.stats.lowestRemaining}</span>
+        </div>
         <div className="global-quota-bar-track">
           <div
             className="global-quota-bar"

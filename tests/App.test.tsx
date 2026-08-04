@@ -56,14 +56,14 @@ describe("App", () => {
  });
  window.profileSwitcher = api;
  });
- it("renders Codex profiles with usage fallback", async () => {
+ it("renders loaded app state", async () => {
  render(<App />);
- expect(await screen.findByText("Codex Work")).toBeInTheDocument();
+ expect((await screen.findAllByText("Codex Work")).length).toBeGreaterThanOrEqual(1);
  expect((await screen.findAllByText("Quota unavailable")).length).toBeGreaterThan(0);
  });
  it("uses one native tooltip source for the auto-switch count badge", async () => {
  render(<App />);
- await screen.findByText("Codex Work");
+ await screen.findAllByText("Codex Work");
  const badge = screen.getByLabelText("0 auto-switches performed this session");
  expect(badge).toHaveAttribute("title", "0 auto-switches performed this session");
  expect(badge).not.toHaveAttribute("data-tooltip");
@@ -221,8 +221,8 @@ describe("App", () => {
  fireEvent.change(input, { target: { value: "Renamed Work" } });
  fireEvent.keyDown(input, { key: "Enter" });
  await waitFor(() => expect(api.renameProfile).toHaveBeenCalledWith({ profileId: "codex-1", name: "Renamed Work" }));
- expect(await screen.findByText("Renamed Work")).toBeInTheDocument();
- expect(promptSpy).not.toHaveBeenCalled();
+  expect((await screen.findAllByText("Renamed Work")).length).toBeGreaterThanOrEqual(1);
+  expect(promptSpy).not.toHaveBeenCalled();
  promptSpy.mockRestore();
  });
  it("completes refresh all when all profiles resolve and state reloads", async () => {
@@ -301,19 +301,19 @@ describe("App", () => {
  expect(screen.getAllByText("0").length).toBeGreaterThanOrEqual(3);
  });
  it("renders one account with active badge", async () => {
- window.profileSwitcher = fakeApi(accountsState([
- profileFixture("one", "Solo", "solo@example.com", 88, true)
- ]));
- render(<App />);
- expect(await screen.findByText("Solo")).toBeInTheDocument();
- expect(screen.getAllByText("Active").length).toBeGreaterThanOrEqual(1);
- expect(screen.getAllByText("88%").length).toBeGreaterThanOrEqual(1); // 88/100 = 88%
- });
+    window.profileSwitcher = fakeApi(accountsState([
+      profileFixture("one", "Solo", "solo@example.com", 88, true)
+    ]));
+    render(<App />);
+    expect((await screen.findAllByText("Solo")).length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText("Active").length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText("88%").length).toBeGreaterThanOrEqual(1); // 88/100 = 88%
+  });
  it("renders ten accounts", async () => {
  const profiles = Array.from({ length: 10 }, (_, index) => profileFixture(`p${index}`, `Account ${index}`, `account${index}@example.com`, index === 0 ? 50 : 0, index === 0));
  window.profileSwitcher = fakeApi(accountsState(profiles));
  render(<App />);
- expect(await screen.findByText("Account 0")).toBeInTheDocument();
+ expect((await screen.findAllByText("Account 0")).length).toBeGreaterThanOrEqual(1);
  expect(screen.getByText("Account 9")).toBeInTheDocument();
  expect(screen.getByText("10")).toBeInTheDocument();
  });
@@ -334,7 +334,7 @@ describe("App", () => {
  ]));
  render(<App />);
  expect((await screen.findAllByText("Active")).length).toBeGreaterThanOrEqual(1);
- expect(screen.getByText("Ready")).toBeInTheDocument();
+ expect(screen.getAllByText("Ready").length).toBeGreaterThanOrEqual(1);
  expect(screen.getAllByText("Rate Limited").length).toBeGreaterThanOrEqual(1);
  });
  it("renders the account context menu in a body portal", async () => {
@@ -350,20 +350,20 @@ describe("App", () => {
  expect(menu).toHaveStyle({ position: "fixed", zIndex: "9999" });
  });
  it("shows Rate Limited on active exhausted accounts without the old banner", async () => {
- const activeLow = profileFixture("active", "Active Low", "active-low@example.com", 0, true);
- if (activeLow.usage?.pools?.[0]) {
- activeLow.usage.pools[0].status = "exhausted";
- }
- window.profileSwitcher = fakeApi(accountsState([activeLow]));
- render(<App />);
- expect(await screen.findByText("Active Low")).toBeInTheDocument();
- expect(screen.queryByText("Quota exhausted, switch to a ready account")).not.toBeInTheDocument();
- expect(screen.getAllByText("Rate Limited").length).toBeGreaterThanOrEqual(1);
- const card = screen.getByText("Active Low").closest(".account-card");
- // Exhausted quota is amber \u2014 a waiting state, not the alarm-red reserved for failures.
- expect(card?.querySelector(".quota-value")).toHaveStyle({ color: "#f59e0b" });
- expect(card?.querySelector(".bar span")).toHaveStyle({ background: "#f59e0b" });
- });
+    const activeLow = profileFixture("active", "Active Low", "active-low@example.com", 0, true);
+    if (activeLow.usage?.pools?.[0]) {
+      activeLow.usage.pools[0].status = "exhausted";
+    }
+    window.profileSwitcher = fakeApi(accountsState([activeLow]));
+    render(<App />);
+    expect((await screen.findAllByText("Active Low")).length).toBeGreaterThanOrEqual(1);
+    expect(screen.queryByText("Quota exhausted, switch to a ready account")).not.toBeInTheDocument();
+    expect(screen.getAllByText("Rate Limited").length).toBeGreaterThanOrEqual(1);
+    const card = screen.getAllByText("Active Low").map((el) => el.closest(".account-card")).find(Boolean);
+    // Exhausted quota is amber — a waiting state, not the alarm-red reserved for failures.
+    expect(card?.querySelector(".quota-value")).toHaveStyle({ color: "#f59e0b" });
+    expect(card?.querySelector(".bar span")).toHaveStyle({ background: "#f59e0b" });
+  });
  it("uses accent orange for healthy high percentage quota bars", async () => {
  window.profileSwitcher = fakeApi(accountsState([
  profileFixture("ready-high", "Ready High", "ready-high@example.com", 97, false)
@@ -425,17 +425,17 @@ describe("App", () => {
  expect(container.querySelector(".account-grid.compact .quota-bar--unavailable .bar-placeholder")).toBeInTheDocument();
  expect(container.querySelector(".account-grid.compact .quota-bar--unavailable .bar-placeholder-pct")).toHaveTextContent("—");
  });
- it("calculates stats and global quota from known quota accounts", async () => {
- window.profileSwitcher = fakeApi(accountsState([
- profileFixture("active", "Active", "active@example.com", 100, true),
- profileFixture("ready", "Ready", "ready@example.com", 50, false),
- profileFixture("unknown", "Unknown", "unknown@example.com", undefined, false)
- ]));
- render(<App />);
- expect(await screen.findByText("Total Accounts")).toBeInTheDocument();
- const statText = Array.from(document.querySelectorAll(".stat-box")).map((element) => element.textContent);
- expect(statText).toEqual(expect.arrayContaining(["Total Accounts3", "Active1", "Rate Limited0", "Global Quota75%"]));
- });
+  it("calculates stats and lowest remaining quota from known quota accounts", async () => {
+    window.profileSwitcher = fakeApi(accountsState([
+      profileFixture("active", "Active", "active@example.com", 100, true),
+      profileFixture("ready", "Ready", "ready@example.com", 50, false),
+      profileFixture("unknown", "Unknown", "unknown@example.com", undefined, false)
+    ]));
+    render(<App />);
+    expect(await screen.findByText("Lowest Remaining")).toBeInTheDocument();
+    const statText = Array.from(document.querySelectorAll(".stat-box")).map((element) => element.textContent);
+    expect(statText).toEqual(expect.arrayContaining(["3Accounts", "1Ready", "0Rate Limited", "50%Lowest Remaining"]));
+  });
 });
 function fakeApi(state: AppState): ProfileSwitcherApi {
  return {

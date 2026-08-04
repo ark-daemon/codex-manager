@@ -1,5 +1,6 @@
 import { AppState } from "../shared/types";
 import { copyForLanguage } from "../i18n";
+import { displayPrimaryLabel } from "../ui-utils";
 
 type UiCopy = ReturnType<typeof copyForLanguage>;
 type View = "accounts" | "settings";
@@ -24,6 +25,7 @@ export function Sidebar({
   onSetServiceRunning
 }: SidebarProps) {
   const autoSwitchBadgeLabel = `${autoSwitchSessionCount} auto-switch${autoSwitchSessionCount === 1 ? "" : "es"} performed this session`;
+  const activeProfile = state.profiles.find((p) => p.isActive);
 
   return (
     <aside className="sidebar">
@@ -32,8 +34,8 @@ export function Sidebar({
           <svg
             className="brand-icon"
             xmlns="http://www.w3.org/2000/svg"
-            width="28"
-            height="28"
+            width="24"
+            height="24"
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"
@@ -62,20 +64,22 @@ export function Sidebar({
       </nav>
 
       <div className="service-card">
-        <div className="service-status-row">
-          <span className={`service-dot ${state.settings.serviceRunning ? "running" : "stopped"}`} />
-          <div className="service-primary">
-            <strong title={copy.sidebar.serviceTooltip}>
-              {state.settings.serviceRunning ? copy.sidebar.serviceActive : copy.sidebar.servicePaused}
-            </strong>
+        <div className="sidebar-status-group">
+          <div className="sidebar-status-row">
+            <span className="sidebar-status-label">Desktop App</span>
+            <span className={`sidebar-status-value ${state.settings.serviceRunning ? "connected" : "paused"}`}>
+              ● {state.settings.serviceRunning ? "Connected" : "Paused"}
+            </span>
+          </div>
+
+          <div className="sidebar-status-row">
+            <span className="sidebar-status-label">Current Account</span>
+            <span className={`sidebar-status-value ${activeProfile ? "active-acc" : "none-acc"}`}>
+              {activeProfile ? displayPrimaryLabel(activeProfile) : "None"}
+            </span>
           </div>
         </div>
-        {!state.profiles.some((profile) => profile.isActive) && (
-          <div className="service-no-account-row">
-            <span className="service-dot no-account" />
-            <strong>{copy.sidebar.noAccountActive}</strong>
-          </div>
-        )}
+
         <div className="service-auto-switch-group">
           <label className="toggle service-toggle" title={copy.actions.autoSwitch}>
             <input
@@ -93,6 +97,7 @@ export function Sidebar({
             {autoSwitchSessionCount}
           </span>
         </div>
+
         <div className="service-footer-row">
           <small className="service-interval">
             {state.settings.pollingIntervalMinutes} {copy.sidebar.minuteInterval}
