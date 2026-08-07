@@ -290,12 +290,13 @@ h1, h2, h3, h4, h5, h6, .brand h1, .brand-title h1 {
   overflow: hidden;
 }
 .brand h1 {
- margin: 0;
- color: var(--fg);
- font-size: 14px;
- font-weight: 700;
- text-transform: uppercase;
- letter-spacing: 0.05em;
+  margin: 0;
+  color: var(--fg);
+  font-size: 22px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  line-height: 1;
 }
 .brand-title {
   display: flex;

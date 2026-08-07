@@ -204,7 +204,6 @@ export const AccountCard = memo(function AccountCard({
             onClick={(e) => e.stopPropagation()}
             aria-label={`Select ${profile.name}`}
           />
-          <div className="card-avatar" title={profile.name}>{avatarInitial}</div>
         </div>
 
         <div className="card-identity">
