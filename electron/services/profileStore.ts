@@ -1220,10 +1220,19 @@ function extractTomlSections(config: string): Array<TomlSection & { start: numbe
   });
 }
 function isSharedPluginSection(sectionName: string): boolean {
-  return sectionName === "plugins"
-    || sectionName.startsWith("plugins.")
-    || sectionName === "marketplaces"
-    || sectionName.startsWith("marketplaces.");
+  const normalized = sectionName.toLowerCase().trim();
+  return (
+    normalized === "plugins" ||
+    normalized.startsWith("plugins.") ||
+    normalized === "plugin" ||
+    normalized.startsWith("plugin.") ||
+    normalized === "marketplaces" ||
+    normalized.startsWith("marketplaces.") ||
+    normalized === "marketplace" ||
+    normalized.startsWith("marketplace.") ||
+    normalized === "tools" ||
+    normalized.startsWith("tools.")
+  );
 }
 function mergeSharedProjectState(targetState: Record<string, unknown>, liveState: Record<string, unknown>): Record<string, unknown> {
   const merged: Record<string, unknown> = { ...targetState };
