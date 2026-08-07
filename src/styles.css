@@ -303,9 +303,10 @@ h1, h2, h3, h4, h5, h6, .brand h1, .brand-title h1 {
  gap: 8px;
 }
 .brand-icon {
- width: 28px;
- height: 28px;
- stroke: var(--accent);
+  width: 28px;
+  height: 28px;
+  object-fit: contain;
+  border-radius: 6px;
 }
 .sidebar-nav {
  display: flex;
