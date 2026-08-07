@@ -174,21 +174,6 @@ export function AccountsPage({
           </button>
         </div>
 
-        {/* Search Bar */}
-        <div className="toolbar-search-box">
-          <Search size={14} className="search-icon" />
-          <input
-            type="text"
-            placeholder="Search accounts..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            aria-label="Search accounts"
-          />
-          {searchQuery && (
-            <button className="search-clear-btn" onClick={() => setSearchQuery("")}>×</button>
-          )}
-        </div>
-
         {/* Filters & Sort */}
         <div className="toolbar-filters">
           <div className="filter-pill-group">
@@ -209,12 +194,6 @@ export function AccountsPage({
               onClick={() => setFilterStatus("limited")}
             >
               Rate Limited
-            </button>
-            <button
-              className={`filter-pill ${filterStatus === "active" ? "active" : ""}`}
-              onClick={() => setFilterStatus("active")}
-            >
-              Active
             </button>
           </div>
 
