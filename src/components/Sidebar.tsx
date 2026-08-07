@@ -1,6 +1,7 @@
 import { AppState } from "../shared/types";
 import { copyForLanguage } from "../i18n";
 import { displayPrimaryLabel } from "../ui-utils";
+import brandLogo from "../../assets/icon.png";
 
 type UiCopy = ReturnType<typeof copyForLanguage>;
 type View = "accounts" | "settings";
@@ -31,7 +32,7 @@ export function Sidebar({
     <aside className="sidebar">
       <div className="brand">
         <div className="brand-title">
-          <img src="/logo.png" className="brand-icon" alt="Relay" />
+          <img src={brandLogo} className="brand-icon" alt="Relay" />
           <h1>Relay</h1>
         </div>
       </div>

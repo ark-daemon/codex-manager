@@ -341,15 +341,50 @@ h1, h2, h3, h4, h5, h6, .brand h1, .brand-title h1 {
  box-shadow: 0 0 10px var(--accent-muted);
 }
 .service-card {
- margin-top: auto;
- border: 1px solid var(--border);
- background: var(--card);
- backdrop-filter: blur(8px);
- border-radius: 12px !important;
- padding: 16px;
- display: flex;
- flex-direction: column;
- gap: 16px;
+  margin-top: auto;
+  border: 1px solid var(--border);
+  background: var(--card);
+  backdrop-filter: blur(8px);
+  border-radius: 12px !important;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.sidebar-status-group {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.sidebar-status-row {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.sidebar-status-label {
+  font-size: 10px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--muted);
+}
+.sidebar-status-value {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--fg);
+  word-break: break-word;
+}
+.sidebar-status-value.connected {
+  color: var(--success);
+}
+.sidebar-status-value.paused {
+  color: var(--muted);
+}
+.sidebar-status-value.active-acc {
+  color: var(--accent);
+}
+.sidebar-status-value.none-acc {
+  color: var(--muted);
 }
 .service-status-row {
  display: flex;
