@@ -1,6 +1,7 @@
+import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import electron, { app, BrowserWindow, dialog, ipcMain, Menu, nativeTheme, session, shell, Tray } from "electron";
+import electron, { app, BrowserWindow, dialog, ipcMain, Menu, nativeImage, nativeTheme, session, shell, Tray } from "electron";
 import type { IpcMainInvokeEvent, IpcMainEvent } from "electron";
 
 const { Notification } = electron;
@@ -336,7 +337,8 @@ function showMainWindow(): void {
 }
 
 function createTray(): void {
-  tray = new Tray(trayIconPath);
+  const icon = nativeImage.createFromPath(trayIconPath);
+  tray = new Tray(icon);
   tray.setToolTip("Relay");
   tray.on("click", showMainWindow);
   updateTrayMenu();
