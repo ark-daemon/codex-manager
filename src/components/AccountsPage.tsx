@@ -149,7 +149,7 @@ export function AccountsPage({
           <p>{copy.accounts.description}</p>
         </div>
 
-        <StatsBar stats={stats} copy={copy} filterStatus={filterStatus} onFilterChange={setFilterStatus} />
+        <StatsBar stats={stats} copy={copy} />
 
         <button
           className="icon-button"

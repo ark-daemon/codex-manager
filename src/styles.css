@@ -606,21 +606,6 @@ h1, h2, h3, h4, h5, h6, .brand h1, .brand-title h1 {
 .stat-box strong.ready-stat-text {
   color: #22C55E;
 }
-.stat-box.clickable {
-  cursor: pointer;
-  padding: 4px 8px;
-  border-radius: 6px;
-  transition: all 150ms ease;
-  user-select: none;
-}
-.stat-box.clickable:hover {
-  background: var(--item-hover);
-}
-.stat-box.clickable.active {
-  background: rgba(245, 158, 11, 0.08);
-  border-bottom: 2px solid var(--accent);
-  border-radius: 6px 6px 0 0;
-}
 .card-header-badges {
   display: flex;
   align-items: center;
