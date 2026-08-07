@@ -1767,49 +1767,76 @@ h1, h2, h3, h4, h5, h6, .brand h1, .brand-title h1 {
  font-family: "JetBrains Mono", monospace;
  font-size: 11px;
  text-transform: uppercase;
-}
-/* Toasts */
+}/* Toasts */
 .toast-message {
- position: fixed;
- bottom: 24px;
- right: 24px;
- padding: 12px 16px;
- background: var(--menu-bg);
- border: 1px solid var(--border);
- border-radius: 8px;
- box-shadow: var(--shadow);
- display: flex;
- align-items: center;
- gap: 12px;
- z-index: 2000;
- max-width: 380px;
- animation: slideIn 200ms cubic-bezier(0.16, 1, 0.3, 1);
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  padding: 12px 16px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 10px !important;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5), 0 0 12px rgba(0, 0, 0, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  z-index: 9999;
+  min-width: 240px;
+  max-width: 400px;
+  animation: slideIn 220ms cubic-bezier(0.16, 1, 0.3, 1);
+  backdrop-filter: blur(12px);
 }
 @keyframes slideIn {
- from { transform: translateY(16px); opacity: 0; }
- to { transform: translateY(0); opacity: 1; }
+  from { transform: translateY(16px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+.toast-content {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  min-width: 0;
+}
+.toast-icon {
+  flex-shrink: 0;
+}
+.toast-icon.success-icon {
+  color: #22C55E;
+}
+.toast-icon.error-icon {
+  color: #EF4444;
+}
+.toast-icon.warning-icon {
+  color: var(--accent);
+}
+.toast-icon.info-icon {
+  color: #3B82F6;
 }
 .toast-message span {
- font-size: 12px;
- color: var(--fg);
- line-height: 1.4;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--fg);
+  line-height: 1.4;
 }
 .toast-close {
- background: transparent;
- border: 0;
- padding: 2px;
- color: var(--muted-strong);
- cursor: pointer;
- display: flex;
- align-items: center;
- justify-content: center;
- width: 20px;
- height: 20px;
- border-radius: 4px;
+  background: transparent;
+  border: 0;
+  padding: 4px;
+  color: var(--muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 6px !important;
+  flex-shrink: 0;
+  transition: all 150ms ease;
 }
 .toast-close:hover {
- background: var(--item-hover);
- color: var(--fg);
+  background: var(--input-bg-hover);
+  color: var(--fg);
 }
 /* Status Badges styling */
 .status-badge {
