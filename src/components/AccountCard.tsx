@@ -85,7 +85,13 @@ export const AccountCard = memo(function AccountCard({
     ? { background: "rgba(245, 158, 11, 0.16)", borderColor: "rgba(245, 158, 11, 0.4)" }
     : undefined;
 
-  const badgeStatus = profile.isActive ? "active" : (isRateLimited ? "limited" : status);
+  const badgeStatus = profile.isActive
+    ? "active"
+    : isRateLimited
+    ? "limited"
+    : status === "ready" || status === "unknown" || !profile.usage
+    ? "ready"
+    : status;
   const avatarInitial = getAvatarInitial(profile.name, profile.email);
 
   function handleSwitch(e: React.MouseEvent) {
@@ -293,20 +299,20 @@ export const AccountCard = memo(function AccountCard({
         )}
       </div>
 
-      <div className="card-footer">
+      <div className="card-footer-row">
         {profile.isActive ? (
           <div className="card-active-strip">
             <span className="card-active-dot" />
-            <span className="card-active-label">ACTIVE</span>
+            <span className="card-active-label">ACTIVE SESSION</span>
           </div>
         ) : (
           <button className="card-use-button primary-use-btn" onClick={handleSwitch}>
             USE
           </button>
         )}
-        <div className="card-footer-actions">
+        <div className="card-icon-actions">
           <button
-            className="card-action-icon-btn"
+            className="icon-action-btn"
             onClick={(e) => { e.stopPropagation(); onRefresh(); }}
             title={copy.actions.refresh}
             aria-label={`Refresh ${displayPrimaryLabel(profile)}`}
@@ -314,7 +320,7 @@ export const AccountCard = memo(function AccountCard({
             <RefreshCw size={14} />
           </button>
           <button
-            className="card-action-icon-btn"
+            className="icon-action-btn"
             onClick={toggleRename}
             title={copy.actions.rename}
             aria-label={`Rename ${displayPrimaryLabel(profile)}`}
@@ -324,11 +330,11 @@ export const AccountCard = memo(function AccountCard({
           <div className="card-actions-menu">
             <button
               ref={menuButtonRef}
-              className="card-menu-trigger"
+              className="icon-action-btn"
               onClick={handleMenuToggle}
               aria-label={`More actions for ${displayPrimaryLabel(profile)}`}
             >
-              <MoreVertical size={16} />
+              <MoreVertical size={14} />
             </button>
             {menuPortal}
           </div>

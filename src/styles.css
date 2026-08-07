@@ -881,10 +881,115 @@ h1, h2, h3, h4, h5, h6, .brand h1, .brand-title h1 {
   justify-content: space-between;
   gap: 8px;
 }
-.card-selection {
+.card-selection input[type="checkbox"] {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 16px;
+  height: 16px;
+  border: 1.5px solid var(--border);
+  border-radius: 4px !important;
+  background: var(--input-bg);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 150ms ease;
+  flex-shrink: 0;
+  margin: 0;
+}
+.card-selection input[type="checkbox"]:checked {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+.card-selection input[type="checkbox"]:checked::after {
+  content: "✓";
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.card-footer-row {
   display: flex;
   align-items: center;
   gap: 8px;
+  margin-top: 12px;
+}
+.card-use-button {
+  flex: 1;
+  height: 36px;
+  border-radius: 8px !important;
+  font-weight: 700;
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  background: transparent;
+  color: var(--fg);
+  border: 1px solid var(--border);
+  cursor: pointer;
+  transition: all 150ms cubic-bezier(0.16, 1, 0.3, 1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.card-use-button:hover {
+  background: var(--accent);
+  color: #ffffff;
+  border-color: var(--accent);
+  box-shadow: 0 0 12px rgba(245, 158, 11, 0.3);
+  transform: translateY(-1px);
+}
+.card-use-button:active {
+  transform: scale(0.97);
+}
+.card-active-strip {
+  flex: 1;
+  height: 36px;
+  border-radius: 8px !important;
+  border: 1px solid var(--active-border);
+  background: rgba(245, 158, 11, 0.08);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  color: var(--accent);
+  font-weight: 700;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+}
+.card-active-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 6px var(--accent);
+}
+.card-icon-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.icon-action-btn {
+  width: 34px;
+  height: 34px;
+  border-radius: 8px !important;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 150ms cubic-bezier(0.16, 1, 0.3, 1);
+  padding: 0;
+}
+.icon-action-btn:hover {
+  background: var(--input-bg-hover);
+  color: var(--fg);
+  border-color: var(--muted);
+  transform: translateY(-1px);
+}
+.icon-action-btn:active {
+  transform: scale(0.95);
 }
 .card-avatar {
   width: 26px;

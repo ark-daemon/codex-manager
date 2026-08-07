@@ -172,16 +172,6 @@ export function AccountsPage({
           <button aria-label={copy.messages.importProfiles} title={copy.messages.importProfiles} onClick={() => void onImportProfiles()}>
             <Import size={15} /> {copy.actions.import}
           </button>
-
-          <button
-            className={`timeline-toggle-btn ${showTimeline ? "active" : ""}`}
-            onClick={() => setShowTimeline(!showTimeline)}
-            title="Toggle Quota Timeline"
-          >
-            <BarChart2 size={15} />
-            <span>Timeline</span>
-            {showTimeline ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-          </button>
         </div>
 
         {/* Search Bar */}
@@ -266,42 +256,6 @@ export function AccountsPage({
           )}
         </div>
       </div>
-
-      {/* Quota Timeline Drawer */}
-      {showTimeline && state.profiles.length > 0 && (
-        <div className="quota-timeline-panel">
-          <div className="timeline-header">
-            <h4>Quota Timeline & Health Matrix</h4>
-            <span className="timeline-subtitle">Live remaining capacity & reset schedules across all accounts</span>
-          </div>
-          <div className="timeline-rows">
-            {state.profiles.map((p) => {
-              const pools = availablePools(p.usage);
-              const primary = pools.find(pl => pl.id.includes("five")) || pools.find(pl => pl.id.includes("weekly")) || pools[0];
-              const pct = quotaPercent(p.usage) ?? 0;
-              const isLim = statusForProfile(p) === "limited";
-              const col = getBarColor(pct, isLim);
-              return (
-                <div key={p.id} className={`timeline-row ${p.isActive ? "active" : ""}`}>
-                  <div className="timeline-account-info">
-                    <span className="timeline-account-name">{displayPrimaryLabel(p)}</span>
-                    {p.isActive && <span className="timeline-active-badge">Active</span>}
-                  </div>
-                  <div className="timeline-bar-container">
-                    <div className="timeline-bar-track">
-                      <div className="timeline-bar-fill" style={{ width: `${pct}%`, background: col }} />
-                    </div>
-                    <span className="timeline-pct" style={{ color: col }}>{Math.round(pct)}%</span>
-                  </div>
-                  <div className="timeline-reset">
-                    {primary?.resetAt ? formatResetCountdown(primary.resetAt) : "—"}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
 
       {/* Account Cards Grid */}
       {processedProfiles.length === 0 ? (
