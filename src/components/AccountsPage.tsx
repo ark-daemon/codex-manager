@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { Download, Import, Plus, RefreshCw, Search, Trash2, Upload, BarChart2, ChevronDown, ChevronUp, Filter } from "lucide-react";
 import { AppState, ProfileSummary } from "../shared/types";
 import { copyForLanguage, formatMessage } from "../i18n";
-import { availablePools, buildStats, displayPrimaryLabel, formatResetCountdown, getBarColor, statusForProfile } from "../ui-utils";
+import { availablePools, buildStats, displayPrimaryLabel, formatResetCountdown, getAccountPlan, getBarColor, getUniquePlans, statusForProfile } from "../ui-utils";
 import { StatsBar } from "./StatsBar";
 import { AccountCard } from "./AccountCard";
 import { quotaPercent } from "../shared/utils";
@@ -64,7 +64,10 @@ export function AccountsPage({
   const [searchQuery, setSearchQuery] = useState("");
   const [sortBy, setSortBy] = useState<SortOption>("remaining");
   const [filterStatus, setFilterStatus] = useState<FilterOption>("all");
+  const [planFilter, setPlanFilter] = useState<string>("all");
   const [showTimeline, setShowTimeline] = useState(false);
+
+  const uniquePlans = useMemo(() => getUniquePlans(state.profiles), [state.profiles]);
 
   function handleDeleteSelected() {
     if (selectedCount === 0) return;
@@ -101,7 +104,12 @@ export function AccountsPage({
       });
     }
 
-    // 3. Sorting (Pin Active Account first by default)
+    // 3. Plan Filter
+    if (planFilter !== "all") {
+      list = list.filter((p) => getAccountPlan(p).toLowerCase() === planFilter.toLowerCase());
+    }
+
+    // 4. Sorting (Pin Active Account first by default)
     list.sort((a, b) => {
       if (a.isActive !== b.isActive) {
         return a.isActive ? -1 : 1;
@@ -129,7 +137,7 @@ export function AccountsPage({
     });
 
     return list;
-  }, [state.profiles, searchQuery, filterStatus, sortBy]);
+  }, [state.profiles, searchQuery, filterStatus, planFilter, sortBy]);
 
   return (
     <section className="panel accounts-panel">
@@ -141,7 +149,7 @@ export function AccountsPage({
           <p>{copy.accounts.description}</p>
         </div>
 
-        <StatsBar stats={stats} copy={copy} />
+        <StatsBar stats={stats} copy={copy} filterStatus={filterStatus} onFilterChange={setFilterStatus} />
 
         <button
           className="icon-button"
@@ -176,26 +184,23 @@ export function AccountsPage({
 
         {/* Filters & Sort */}
         <div className="toolbar-filters">
-          <div className="filter-pill-group">
-            <button
-              className={`filter-pill ${filterStatus === "all" ? "active" : ""}`}
-              onClick={() => setFilterStatus("all")}
-            >
-              All
-            </button>
-            <button
-              className={`filter-pill ${filterStatus === "ready" ? "active" : ""}`}
-              onClick={() => setFilterStatus("ready")}
-            >
-              Ready
-            </button>
-            <button
-              className={`filter-pill ${filterStatus === "limited" ? "active" : ""}`}
-              onClick={() => setFilterStatus("limited")}
-            >
-              Rate Limited
-            </button>
-          </div>
+          {uniquePlans.length > 1 && (
+            <div className="plan-dropdown-container">
+              <select
+                value={planFilter}
+                onChange={(e) => setPlanFilter(e.target.value)}
+                className="sort-select plan-select"
+                aria-label="Filter accounts by plan"
+              >
+                <option value="all">Plan: All Plans</option>
+                {uniquePlans.map((plan) => (
+                  <option key={plan} value={plan.toLowerCase()}>
+                    Plan: {plan}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
 
           <div className="sort-dropdown-container">
             <select

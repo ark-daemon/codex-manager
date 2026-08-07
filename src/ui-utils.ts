@@ -248,6 +248,28 @@ export function formatResetCountdown(resetAt: string): string {
  const totalDays = Math.floor(totalHours / 24);
  if (totalHours >= 24) return `Resets in ${totalDays}d ${totalHours % 24}h`;
  if (totalMinutes >= 60) return `Resets in ${totalHours}h ${totalMinutes % 60}m`;
- if (totalMinutes >= 5) return `Resets in ${totalMinutes}m`;
- return "Resetting soon";
+  if (totalMinutes >= 5) return `Resets in ${totalMinutes}m`;
+  return "Resetting soon";
+}
+
+export function getAccountPlan(profile: ProfileSummary): string {
+  const rawPlan = profile.planType || profile.usage?.planType;
+  if (!rawPlan) return "Free";
+  const clean = rawPlan.trim();
+  if (!clean) return "Free";
+  const lower = clean.toLowerCase();
+  if (lower.includes("plus")) return "Plus";
+  if (lower.includes("team")) return "Team";
+  if (lower.includes("pro")) return "Pro";
+  if (lower.includes("enterprise")) return "Enterprise";
+  if (lower.includes("free")) return "Free";
+  return clean.charAt(0).toUpperCase() + clean.slice(1);
+}
+
+export function getUniquePlans(profiles: ProfileSummary[]): string[] {
+  const set = new Set<string>();
+  for (const p of profiles) {
+    set.add(getAccountPlan(p));
+  }
+  return Array.from(set).sort();
 }

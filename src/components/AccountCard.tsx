@@ -3,7 +3,7 @@ import { createPortal } from "react-dom";
 import { FolderOpen, Pencil, RefreshCw, Trash2, MoreVertical, Archive } from "lucide-react";
 import { ProfileSummary } from "../shared/types";
 import { copyForLanguage, formatMessage } from "../i18n";
-import { displayPrimaryLabel, statusForProfile, availablePools, getBarColor, formatResetCountdown, getAvatarInitial, formatRelativeTime } from "../ui-utils";
+import { displayPrimaryLabel, statusForProfile, availablePools, getBarColor, formatResetCountdown, getAvatarInitial, formatRelativeTime, getAccountPlan } from "../ui-utils";
 
 type UiCopy = ReturnType<typeof copyForLanguage>;
 
@@ -229,10 +229,15 @@ export const AccountCard = memo(function AccountCard({
           {profile.email && <span className="profile-email">{profile.email}</span>}
         </div>
 
-        <span className={`status-badge ${badgeStatus}`}>
-          <span className="status-badge-dot" />
-          <span>{profile.isActive ? copy.status.active : copy.status[badgeStatus]}</span>
-        </span>
+        <div className="card-header-badges">
+          {getAccountPlan(profile) !== "Free" && (
+            <span className="plan-badge">{getAccountPlan(profile)}</span>
+          )}
+          <span className={`status-badge ${badgeStatus}`}>
+            <span className="status-badge-dot" />
+            <span>{profile.isActive ? copy.status.active : copy.status[badgeStatus]}</span>
+          </span>
+        </div>
       </div>
 
       <div className="card-body">

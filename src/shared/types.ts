@@ -26,6 +26,7 @@ export interface QuotaPool {
 export interface UsageSnapshot {
   status: UsageStatus;
   accountEmail?: string;
+  planType?: string;
   fiveHour?: UsageWindow;
   weekly?: UsageWindow;
   monthly?: UsageWindow;
@@ -41,6 +42,7 @@ export interface ProfileManifest {
   name: string;
   email?: string;
   avatarUrl?: string;
+  planType?: string;
   createdAt: string;
   updatedAt: string;
   lastBackupAt?: string;
