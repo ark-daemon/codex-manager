@@ -292,23 +292,37 @@ h1, h2, h3, h4, h5, h6, .brand h1, .brand-title h1 {
 .brand h1 {
   margin: 0;
   color: var(--fg);
-  font-size: 22px;
+  font-size: 26px;
   font-weight: 800;
   text-transform: uppercase;
-  letter-spacing: 0.08em;
-  line-height: 1;
+  letter-spacing: 0.1em;
+  line-height: 1.1;
+  font-family: "Space Grotesk", "Outfit", "Inter", sans-serif;
 }
 .brand-title {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
 }
 .brand-icon {
-  width: 36px;
-  height: 36px;
+  width: 44px;
+  height: 44px;
   object-fit: contain;
   border-radius: 8px;
   flex-shrink: 0;
+}
+.sidebar-status-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.sidebar-status-title {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--fg);
+  text-transform: uppercase;
 }
 .sidebar-nav {
   display: flex;
@@ -603,8 +617,9 @@ h1, h2, h3, h4, h5, h6, .brand h1, .brand-title h1 {
   background: var(--item-hover);
 }
 .stat-box.clickable.active {
-  background: var(--active-bg);
-  box-shadow: inset 0 0 0 1px var(--accent);
+  background: rgba(245, 158, 11, 0.08);
+  border-bottom: 2px solid var(--accent);
+  border-radius: 6px 6px 0 0;
 }
 .card-header-badges {
   display: flex;
@@ -1005,9 +1020,9 @@ h1, h2, h3, h4, h5, h6, .brand h1, .brand-title h1 {
   width: 34px;
   height: 34px;
   border-radius: 8px !important;
-  border: 1px solid var(--border);
-  background: transparent;
-  color: var(--muted);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.05);
+  color: #D4D4D8;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1016,9 +1031,9 @@ h1, h2, h3, h4, h5, h6, .brand h1, .brand-title h1 {
   padding: 0;
 }
 .icon-action-btn:hover {
-  background: var(--input-bg-hover);
-  color: var(--fg);
-  border-color: var(--muted);
+  background: rgba(255, 255, 255, 0.12);
+  color: #FFFFFF;
+  border-color: rgba(255, 255, 255, 0.25);
   transform: translateY(-1px);
 }
 .icon-action-btn:active {
@@ -1238,18 +1253,18 @@ h1, h2, h3, h4, h5, h6, .brand h1, .brand-title h1 {
  gap: 8px;
 }
 .quota-pool-label {
-  font-size: 10px;
-  font-weight: 600;
-  color: #A1A1AA;
+  font-size: 12px;
+  font-weight: 700;
+  color: #E4E4E7;
   text-transform: uppercase;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.05em;
   font-family: "JetBrains Mono", monospace;
 }
 .quota-multiple-indicator {
- font-size: 9px;
- color: var(--muted-strong);
- text-transform: none;
- letter-spacing: 0;
+  font-size: 10px;
+  color: #A1A1AA;
+  text-transform: none;
+  letter-spacing: 0;
 }
 .quota-pool-numbers {
  font-size: 12px;
@@ -1273,13 +1288,13 @@ h1, h2, h3, h4, h5, h6, .brand h1, .brand-title h1 {
  transition: width 600ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 .quota-reset-text {
- font-size: 12px;
- font-weight: 500;
- line-height: 1.35;
- color: var(--fg);
- opacity: 0.78;
- font-family: "JetBrains Mono", monospace;
- letter-spacing: 0.01em;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.35;
+  color: #E4E4E7;
+  opacity: 1;
+  font-family: "JetBrains Mono", monospace;
+  letter-spacing: 0.01em;
 }
 .quota-status-text {
  font-size: 11px;
@@ -1893,32 +1908,13 @@ h1, h2, h3, h4, h5, h6, .brand h1, .brand-title h1 {
  color: var(--active-text);
  border-color: var(--active-border);
 }
-.status-badge.active::before {
- content: "";
- display: inline-block;
- width: 6px;
- height: 6px;
- border-radius: 50%;
- background: var(--accent);
- margin-right: 6px;
- animation: pulse-glow 1.5s infinite;
-}
 .status-badge.ready {
  background: rgba(34, 197, 94, 0.08);
  color: var(--success);
  border-color: rgba(34, 197, 94, 0.25);
 }
-.status-badge.ready::before {
- content: "";
- display: inline-block;
- width: 6px;
- height: 6px;
- border-radius: 50%;
- background: var(--success);
- margin-right: 6px;
-}
 /* Rate-limited is a normal, self-healing state (quota resets on a timer),
-   so it is amber \"waiting\", NOT alarm-red. Bigger type so it stays scannable. */
+   so it is amber "waiting", NOT alarm-red. Bigger type so it stays scannable. */
 .status-badge.limited {
  padding: 6px 12px;
  font-size: 12px;
@@ -1928,28 +1924,10 @@ h1, h2, h3, h4, h5, h6, .brand h1, .brand-title h1 {
  color: var(--warn);
  border-color: var(--warn-border);
 }
-.status-badge.limited::before {
- content: "";
- display: inline-block;
- width: 7px;
- height: 7px;
- border-radius: 50%;
- background: var(--warn);
- margin-right: 7px;
-}
 .status-badge.unknown {
  background: rgba(113, 113, 122, 0.08);
  color: var(--muted-strong);
  border-color: rgba(113, 113, 122, 0.2);
-}
-.status-badge.unknown::before {
- content: "";
- display: inline-block;
- width: 6px;
- height: 6px;
- border-radius: 50%;
- background: var(--muted-strong);
- margin-right: 6px;
 }
 @keyframes pulse-glow {
  0% { transform: scale(0.9); opacity: 0.6; }

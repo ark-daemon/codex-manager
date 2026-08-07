@@ -47,20 +47,11 @@ export function Sidebar({
       </nav>
 
       <div className="service-card">
-        <div className="sidebar-status-group">
-          <div className="sidebar-status-row">
-            <span className="sidebar-status-label">Desktop App</span>
-            <span className={`sidebar-status-value ${state.settings.serviceRunning ? "connected" : "paused"}`}>
-              ● {state.settings.serviceRunning ? "Connected" : "Paused"}
-            </span>
-          </div>
-
-          <div className="sidebar-status-row">
-            <span className="sidebar-status-label">Current Account</span>
-            <span className={`sidebar-status-value ${activeProfile ? "active-acc" : "none-acc"}`}>
-              {activeProfile ? displayPrimaryLabel(activeProfile) : "None"}
-            </span>
-          </div>
+        <div className="sidebar-status-header">
+          <span className={`status-badge-dot ${state.settings.serviceRunning ? "connected" : "paused"}`} />
+          <span className="sidebar-status-title">
+            {state.settings.serviceRunning ? "CODEX IS ACTIVE" : "CODEX IS PAUSED"}
+          </span>
         </div>
 
         <div className="service-auto-switch-group">
