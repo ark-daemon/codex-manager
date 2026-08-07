@@ -298,47 +298,48 @@ h1, h2, h3, h4, h5, h6, .brand h1, .brand-title h1 {
  letter-spacing: 0.05em;
 }
 .brand-title {
- display: flex;
- align-items: center;
- gap: 8px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 .brand-icon {
-  width: 28px;
-  height: 28px;
+  width: 36px;
+  height: 36px;
   object-fit: contain;
-  border-radius: 6px;
+  border-radius: 8px;
+  flex-shrink: 0;
 }
 .sidebar-nav {
- display: flex;
- flex-direction: column;
- gap: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 .sidebar-nav button {
- display: flex;
- align-items: center;
- justify-content: flex-start;
- width: 100%;
- background: transparent;
- border: 1px solid transparent;
- padding: 8px 12px;
- min-height: 36px;
- color: var(--muted-strong);
- font-size: 12px;
- font-weight: 500;
- text-transform: none;
- letter-spacing: 0;
- border-radius: 6px;
- transition: all 150ms ease;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  width: 100%;
+  background: transparent;
+  border: 1px solid transparent;
+  padding: 8px 12px;
+  min-height: 36px;
+  color: var(--muted-strong);
+  font-size: 12px;
+  font-weight: 500;
+  text-transform: none;
+  letter-spacing: 0;
+  border-radius: 6px;
+  transition: all 150ms ease;
 }
 .sidebar-nav button:hover {
- color: var(--fg);
- background: var(--item-hover);
+  color: var(--fg);
+  background: var(--item-hover);
 }
 .sidebar-nav button.active {
- color: var(--accent);
- background: var(--active-bg);
- border: 1px solid var(--active-border);
- box-shadow: 0 0 10px var(--accent-muted);
+  color: var(--accent);
+  background: var(--active-bg);
+  border: 1px solid var(--active-border);
+  box-shadow: 0 0 10px var(--accent-muted);
 }
 .service-card {
   margin-top: auto;
@@ -363,10 +364,10 @@ h1, h2, h3, h4, h5, h6, .brand h1, .brand-title h1 {
 }
 .sidebar-status-label {
   font-size: 10px;
-  font-weight: 500;
+  font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--muted);
+  letter-spacing: 0.06em;
+  color: #A1A1AA;
 }
 .sidebar-status-value {
   font-size: 11px;
@@ -1201,11 +1202,12 @@ h1, h2, h3, h4, h5, h6, .brand h1, .brand-title h1 {
  gap: 8px;
 }
 .quota-pool-label {
- font-size: 11px;
- color: var(--muted-strong);
- text-transform: uppercase;
- letter-spacing: 0.05em;
- font-family: "JetBrains Mono", monospace;
+  font-size: 10px;
+  font-weight: 600;
+  color: #A1A1AA;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-family: "JetBrains Mono", monospace;
 }
 .quota-multiple-indicator {
  font-size: 9px;

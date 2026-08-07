@@ -17,22 +17,15 @@ function isEmailLike(value: string): boolean {
 }
 
 export function statusForProfile(profile: ProfileSummary): "active" | "ready" | "limited" | "expired" | "unknown" {
- if (profile.isActive) return "active";
- if (profile.usage?.message === "Token expired") return "expired";
- if (!profile.usage || profile.usage.status !== "available") return "unknown";
+  if (profile.isActive) return "active";
+  if (profile.usage?.message === "Token expired") return "expired";
 
- const pools = availablePools(profile.usage);
- if (pools.some((pool) => pool.status === "exhausted" || (typeof pool.remaining === "number" && pool.remaining <= 0))) {
- return "limited";
- }
- const primary = pools.find((pool) => pool.id.includes("five") || pool.id.includes("weekly"))
- ?? pools[0];
- if (!primary || primary.remaining === undefined || primary.limit === undefined || primary.limit <= 0) {
- return "unknown";
- }
+  const pools = availablePools(profile.usage);
+  if (pools.some((pool) => pool.status === "exhausted" || (typeof pool.remaining === "number" && pool.remaining <= 0))) {
+    return "limited";
+  }
 
- const isLimited = primary.remaining <= 0 || primary.status === "exhausted";
- return isLimited ? "limited" : "ready";
+  return "ready";
 }
 
 export function availablePools(usage: UsageSnapshot | undefined): QuotaPool[] {

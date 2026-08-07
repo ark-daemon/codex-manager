@@ -434,7 +434,7 @@ describe("App", () => {
     render(<App />);
     expect(await screen.findByText("Lowest Remaining")).toBeInTheDocument();
     const statText = Array.from(document.querySelectorAll(".stat-box")).map((element) => element.textContent);
-    expect(statText).toEqual(expect.arrayContaining(["3Accounts", "1Ready", "0Rate Limited", "50%Lowest Remaining"]));
+    expect(statText).toEqual(expect.arrayContaining(["3Accounts", "2Ready", "0Rate Limited", "50%Lowest Remaining"]));
   });
 });
 function fakeApi(state: AppState): ProfileSwitcherApi {
