@@ -51,6 +51,7 @@ export class ActiveProfileSyncer {
       }
 
       await this.profileStore.syncActiveProfileFromLive();
+      await this.profileStore.autoSwitchIfNeeded();
       console.info(`[auto-sync] Active profile synced at ${new Date().toISOString()}`);
       await this.onSynced();
       return true;

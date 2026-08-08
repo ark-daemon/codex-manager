@@ -235,9 +235,17 @@ function registerIpc(): void {
   safeHandle("profiles:backup", (_event, input: ProfileActionInput) => mutate(() => profileStore.backupProfile(input)));
   safeHandle("profiles:delete", (_event, input: ProfileActionInput) => mutate(() => profileStore.deleteProfile(input)));
   safeHandle("profiles:rename", (_event, input: ProfileActionInput & { name: string }) => mutate(() => profileStore.renameProfile(input)));
-  safeHandle("usage:refresh", (_event, input: ProfileActionInput) => mutate(() => profileStore.refreshUsage(input)));
+  safeHandle("usage:refresh", (_event, input: ProfileActionInput) => mutate(async () => {
+    const snapshot = await profileStore.refreshUsage(input);
+    await profileStore.autoSwitchIfNeeded();
+    return snapshot;
+  }));
   safeHandle("settings:update", (_event, input: SettingsUpdateInput) => mutate(async () => {
     let state = await profileStore.updateSettings(input);
+    if (input.autoSwitchEnabled !== undefined || input.autoSwitchThresholdPercent !== undefined) {
+      await profileStore.autoSwitchIfNeeded();
+      state = await profileStore.getState();
+    }
     if (input.startWithSystem !== undefined) {
       app.setLoginItemSettings({
         openAtLogin: input.startWithSystem,

@@ -19,7 +19,8 @@ describe("ActiveProfileSyncer", () => {
   it("syncs only when enabled, active, and Codex is running", async () => {
     const profileStore = {
       getState: vi.fn(async () => makeState()),
-      syncActiveProfileFromLive: vi.fn(async () => makeState())
+      syncActiveProfileFromLive: vi.fn(async () => makeState()),
+      autoSwitchIfNeeded: vi.fn(async () => undefined)
     };
     const processManager = { isRunning: vi.fn(async () => true) };
     const onSynced = vi.fn();
