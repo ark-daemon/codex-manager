@@ -22,7 +22,6 @@ await safeCopy("app-icon.ico");
 await safeCopy("app-icon.icns");
 await safeCopy("tray-icon-16.png");
 await safeCopy("tray-icon-32.png");
-await safeCopy("tray-icon-48.png");
 await safeCopy("icon.png");
 await safeCopy("tray-icon.png");
 await safeCopy("notification-icon.png");
