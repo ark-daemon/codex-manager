@@ -58,14 +58,18 @@ function getAppIconPath(): string {
 
 function getTrayIcon(): Electron.NativeImage {
   const assetsDir = path.join(__dirname, "..", "assets");
-  const tray32 = path.join(assetsDir, "tray-icon-32.png");
-  const tray16 = path.join(assetsDir, "tray-icon-16.png");
+  const candidates = [
+    path.join(assetsDir, "tray-icon-32x32.png"),
+    path.join(assetsDir, "tray-icon-32.png"),
+    path.join(assetsDir, "tray-icon-16x16.png"),
+    path.join(assetsDir, "tray-icon-16.png"),
+    path.join(assetsDir, "tray-icon.png")
+  ];
 
-  if (fs.existsSync(tray32)) {
-    return nativeImage.createFromPath(tray32);
-  }
-  if (fs.existsSync(tray16)) {
-    return nativeImage.createFromPath(tray16);
+  for (const iconPath of candidates) {
+    if (fs.existsSync(iconPath)) {
+      return nativeImage.createFromPath(iconPath);
+    }
   }
   return nativeImage.createFromPath(path.join(assetsDir, "tray-icon.png"));
 }
