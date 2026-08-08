@@ -51,7 +51,7 @@
  --surface: #FFFFFF;
  --card: #FFFFFF;
  --muted: #D4D4D8; /* Zinc-300 for visible borders */
- --muted-strong: #52525B; /* Softer medium-dark text (zinc-600) for subtitles */
+ --muted-strong: #3F3F46; /* Medium-dark text (zinc-700) for high-contrast subtitles */
  --accent: #D97706; /* Warm amber accent */
  --accent-foreground: #FFFFFF;
  --accent-muted: rgba(217, 119, 6, 0.08);
@@ -1006,9 +1006,9 @@ h1, h2, h3, h4, h5, h6, .brand h1, .brand-title h1 {
   width: 34px;
   height: 34px;
   border-radius: 8px !important;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background: rgba(255, 255, 255, 0.05);
-  color: #D4D4D8;
+  border: 1px solid var(--border);
+  background: var(--input-bg);
+  color: var(--fg);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1017,9 +1017,9 @@ h1, h2, h3, h4, h5, h6, .brand h1, .brand-title h1 {
   padding: 0;
 }
 .icon-action-btn:hover {
-  background: rgba(255, 255, 255, 0.12);
-  color: #FFFFFF;
-  border-color: rgba(255, 255, 255, 0.25);
+  background: var(--item-hover);
+  color: var(--fg);
+  border-color: var(--border-hover);
   transform: translateY(-1px);
 }
 .icon-action-btn:active {
@@ -1269,30 +1269,31 @@ h1, h2, h3, h4, h5, h6, .brand h1, .brand-title h1 {
 }
 .quota-pool-numbers {
  font-size: 12px;
- font-weight: 600;
- color: var(--fg);
- font-family: "JetBrains Mono", monospace;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--fg);
+  font-family: "JetBrains Mono", monospace;
 }
 .quota-progress-track {
- height: 6px;
- background: var(--bar-track);
- border-radius: 9999px;
- overflow: hidden;
- width: 100%;
- border: 1px solid var(--border);
+  height: 6px;
+  background: var(--bar-track);
+  border-radius: 9999px;
+  overflow: hidden;
+  width: 100%;
+  border: 1px solid var(--border);
 }
 .quota-progress-fill {
- display: block;
- height: 100%;
- border-radius: 9999px;
- box-shadow: 0 0 10px rgba(245, 158, 11, 0.3);
- transition: width 600ms cubic-bezier(0.16, 1, 0.3, 1);
+  display: block;
+  height: 100%;
+  border-radius: 9999px;
+  box-shadow: 0 0 10px rgba(245, 158, 11, 0.3);
+  transition: width 600ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 .quota-reset-text {
   font-size: 12px;
   font-weight: 600;
   line-height: 1.35;
-  color: #E4E4E7;
+  color: var(--muted-strong);
   opacity: 1;
   font-family: "JetBrains Mono", monospace;
   letter-spacing: 0.01em;
