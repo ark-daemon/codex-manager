@@ -1255,15 +1255,17 @@ h1, h2, h3, h4, h5, h6, .brand h1, .brand-title h1 {
 }
 .quota-pool-label {
   font-size: 12px;
-  font-weight: 700;
-  color: #E4E4E7;
+  font-weight: 800;
+  color: var(--fg);
+  opacity: 0.9;
   text-transform: uppercase;
   letter-spacing: 0.05em;
   font-family: "JetBrains Mono", monospace;
 }
 .quota-multiple-indicator {
   font-size: 10px;
-  color: #A1A1AA;
+  color: var(--muted-strong);
+  opacity: 0.85;
   text-transform: none;
   letter-spacing: 0;
 }
@@ -1293,8 +1295,8 @@ h1, h2, h3, h4, h5, h6, .brand h1, .brand-title h1 {
   font-size: 12px;
   font-weight: 600;
   line-height: 1.35;
-  color: var(--muted-strong);
-  opacity: 1;
+  color: var(--fg);
+  opacity: 0.85;
   font-family: "JetBrains Mono", monospace;
   letter-spacing: 0.01em;
 }
