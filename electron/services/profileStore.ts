@@ -1046,6 +1046,10 @@ export class ProfileStore {
       await this.settingsStore.update((nextSettings) => {
         nextSettings.activeProfileId = liveActiveId;
       });
+      const manifest = await this.readManifest(liveActiveId);
+      if (manifest) {
+        await this.writeManifest({ ...manifest, lastUsedAt: new Date().toISOString() });
+      }
     }
     return activeProfileId;
   }

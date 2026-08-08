@@ -400,7 +400,33 @@ describe("App", () => {
  borderColor: "rgba(245, 158, 11, 0.4)"
  });
     expect(card?.querySelector(".bar span")).toHaveStyle({ background: "#f59e0b", width: "0%" });
- });
+  });
+
+  it("renders Active now for active account, Used X ago for used account, and Updated X ago for un-activated account", async () => {
+    const activeProf = {
+      ...profileFixture("p-active", "Active User", "active@example.com", 80, true),
+      lastUsedAt: new Date(Date.now() - 60000).toISOString(),
+      updatedAt: new Date(Date.now() - 300000).toISOString()
+    };
+    const usedProf = {
+      ...profileFixture("p-used", "Used User", "used@example.com", 50, false),
+      lastUsedAt: new Date(Date.now() - 7200000).toISOString(),
+      updatedAt: new Date(Date.now() - 300000).toISOString()
+    };
+    const updatedProf = {
+      ...profileFixture("p-updated", "Updated User", "updated@example.com", 90, false),
+      lastUsedAt: undefined,
+      updatedAt: new Date(Date.now() - 300000).toISOString()
+    };
+
+    window.profileSwitcher = fakeApi(accountsState([activeProf, usedProf, updatedProf]));
+    render(<App />);
+
+    expect(await screen.findByText("Active User")).toBeInTheDocument();
+    expect(screen.getByText("Active now")).toBeInTheDocument();
+    expect(screen.getByText(/Used 2h ago/)).toBeInTheDocument();
+    expect(screen.getByText(/Updated 5m ago/)).toBeInTheDocument();
+  });
  it.skip("switches between grid, list, and compact account views", async () => {
  window.profileSwitcher = fakeApi(accountsState([
  profileFixture("one", "One", "one@example.com", 50, true)
