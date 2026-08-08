@@ -100,8 +100,7 @@ export function copyForLanguage(language?: string) {
       ready: "Ready",
       rateLimited: "Rate Limited",
       unavailable: "Unavailable",
-      globalQuota: "Lowest Remaining",
-      lowestRemaining: "Lowest Remaining",
+      globalQuota: "Global quota",
       activeQuota: "Active quota",
       none: "None"
     },

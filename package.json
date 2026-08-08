@@ -60,14 +60,14 @@
  "package.json"
  ],
  "win": {
- "icon": "build/icon.ico",
+ "icon": "assets/app-icon.ico",
  "target": [
  "nsis",
  "portable"
  ]
  },
  "mac": {
- "icon": "assets/icon.png",
+ "icon": "assets/app-icon.icns",
  "target": [
  "dmg"
  ]

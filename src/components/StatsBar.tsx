@@ -32,7 +32,7 @@ export const StatsBar = memo(function StatsBar({ stats, copy }: StatsBarProps) {
       <div className="stat-box wide global-quota-stat">
         <div className="stat-header">
           <strong>{stats.lowestRemainingPercent !== undefined ? `${Math.round(stats.lowestRemainingPercent)}%` : "—"}</strong>
-          <span>{copy.stats.lowestRemaining}</span>
+          <span>{copy.stats.globalQuota}</span>
         </div>
         <div className="global-quota-bar-track">
           <div

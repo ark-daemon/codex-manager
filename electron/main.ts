@@ -30,8 +30,52 @@ import { hasSessionPassphrase, setSessionPassphrase } from "./services/sessionKe
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const envPaths = getEnvPaths();
 const storageRoot = path.join(envPaths.localAppData, "Relay");
-const appIconPath = path.join(__dirname, "..", "assets", "icon.png");
-const trayIconPath = path.join(__dirname, "..", "assets", "tray-icon.png");
+
+function getAppIconPath(): string {
+  const assetsDir = path.join(__dirname, "..", "assets");
+  const buildDir = path.join(__dirname, "..", "build");
+
+  if (process.platform === "win32") {
+    const icoAsset = path.join(assetsDir, "app-icon.ico");
+    if (fs.existsSync(icoAsset)) return icoAsset;
+    const icoBuild = path.join(buildDir, "icon.ico");
+    if (fs.existsSync(icoBuild)) return icoBuild;
+  } else if (process.platform === "darwin") {
+    const icnsAsset = path.join(assetsDir, "app-icon.icns");
+    if (fs.existsSync(icnsAsset)) return icnsAsset;
+    const icnsBuild = path.join(buildDir, "icon.icns");
+    if (fs.existsSync(icnsBuild)) return icnsBuild;
+  }
+
+  // Linux / general fallback
+  const tray32 = path.join(assetsDir, "tray-icon-32.png");
+  if (fs.existsSync(tray32)) return tray32;
+  const png512 = path.join(assetsDir, "icon.png");
+  if (fs.existsSync(png512)) return png512;
+
+  return path.join(assetsDir, "tray-icon.png");
+}
+
+function getTrayIcon(): Electron.NativeImage {
+  const assetsDir = path.join(__dirname, "..", "assets");
+  const tray32 = path.join(assetsDir, "tray-icon-32.png");
+  const tray16 = path.join(assetsDir, "tray-icon-16.png");
+
+  if (fs.existsSync(tray32)) {
+    return nativeImage.createFromPath(tray32);
+  }
+  if (fs.existsSync(tray16)) {
+    return nativeImage.createFromPath(tray16);
+  }
+  return nativeImage.createFromPath(path.join(assetsDir, "tray-icon.png"));
+}
+
+const appIconPath = getAppIconPath();
+const notificationIconPath = process.platform === "win32"
+  ? (fs.existsSync(path.join(__dirname, "..", "assets", "notification-icon.png"))
+      ? path.join(__dirname, "..", "assets", "notification-icon.png")
+      : appIconPath)
+  : appIconPath;
 
 let mainWindow: BrowserWindow | undefined;
 let profileStore: ProfileStore;
@@ -337,7 +381,7 @@ function showMainWindow(): void {
 }
 
 function createTray(): void {
-  const icon = nativeImage.createFromPath(trayIconPath);
+  const icon = getTrayIcon();
   tray = new Tray(icon);
   tray.setToolTip("Relay");
   tray.on("click", showMainWindow);

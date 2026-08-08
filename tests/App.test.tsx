@@ -425,16 +425,16 @@ describe("App", () => {
  expect(container.querySelector(".account-grid.compact .quota-bar--unavailable .bar-placeholder")).toBeInTheDocument();
  expect(container.querySelector(".account-grid.compact .quota-bar--unavailable .bar-placeholder-pct")).toHaveTextContent("—");
  });
-  it("calculates stats and lowest remaining quota from known quota accounts", async () => {
+  it("calculates stats and global quota from known quota accounts", async () => {
     window.profileSwitcher = fakeApi(accountsState([
       profileFixture("active", "Active", "active@example.com", 100, true),
       profileFixture("ready", "Ready", "ready@example.com", 50, false),
       profileFixture("unknown", "Unknown", "unknown@example.com", undefined, false)
     ]));
     render(<App />);
-    expect(await screen.findByText("Lowest Remaining")).toBeInTheDocument();
+    expect(await screen.findByText("Global quota")).toBeInTheDocument();
     const statText = Array.from(document.querySelectorAll(".stat-box")).map((element) => element.textContent);
-    expect(statText).toEqual(expect.arrayContaining(["3Accounts", "2Ready", "0Rate Limited", "50%Lowest Remaining"]));
+    expect(statText).toEqual(expect.arrayContaining(["3Accounts", "2Ready", "0Rate Limited", "50%Global quota"]));
   });
 });
 function fakeApi(state: AppState): ProfileSwitcherApi {
