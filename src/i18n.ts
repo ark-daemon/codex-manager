@@ -83,7 +83,7 @@ export function copyForLanguage(language?: string) {
     },
     accounts: {
       title: "Accounts",
-      description: "Manage Codex sessions (ChatGPT desktop), quotas, and switching.",
+      description: "Seamlessly switch ChatGPT accounts and track live usage.",
       empty: "No saved Codex accounts yet.",
       emptyHint: "Add your first Codex account to start switching between profiles.",
       profileUpdated: "Profile updated",
