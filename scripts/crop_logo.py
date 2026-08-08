@@ -61,8 +61,11 @@ os.makedirs(assets_dir, exist_ok=True)
 img_512 = fit_square(cropped, 512)
 img_512.save(os.path.join(assets_dir, "icon.png"), "PNG")
 
-# 2. assets/tray-icon.png (32x32, aspect-ratio-preserving)
-fit_square(cropped, 32, fill_ratio=0.98).save(os.path.join(assets_dir, "tray-icon.png"), "PNG")
+# 2. assets/tray-icon*.png (16x16, 32x32, 48x48, 100% edge-to-edge content fill)
+fit_square(cropped, 16, fill_ratio=1.0).save(os.path.join(assets_dir, "tray-icon-16.png"), "PNG")
+fit_square(cropped, 32, fill_ratio=1.0).save(os.path.join(assets_dir, "tray-icon-32.png"), "PNG")
+fit_square(cropped, 48, fill_ratio=1.0).save(os.path.join(assets_dir, "tray-icon-48.png"), "PNG")
+fit_square(cropped, 32, fill_ratio=1.0).save(os.path.join(assets_dir, "tray-icon.png"), "PNG")
 
 # 3. build/icon.ico (16, 32, 48, 64, 128, 256; aspect-ratio-preserving)
 build_dir = os.path.join(root, "build")
