@@ -399,7 +399,7 @@ describe("App", () => {
  background: "rgba(245, 158, 11, 0.16)",
  borderColor: "rgba(245, 158, 11, 0.4)"
  });
- expect(card?.querySelector(".bar span")).toHaveStyle({ background: "#f59e0b", width: "3%" });
+    expect(card?.querySelector(".bar span")).toHaveStyle({ background: "#f59e0b", width: "0%" });
  });
  it.skip("switches between grid, list, and compact account views", async () => {
  window.profileSwitcher = fakeApi(accountsState([

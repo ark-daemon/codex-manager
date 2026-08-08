@@ -79,7 +79,7 @@ export const AccountCard = memo(function AccountCard({
     || (primaryPool && (primaryPool.status === "exhausted" || (typeof primaryPool.remaining === "number" && primaryPool.remaining <= 0)));
   const barColor = primaryPool ? getBarColor(percent, isRateLimited) : undefined;
   const isCriticalBar = isRateLimited || (primaryPool && percent <= 5);
-  const visiblePercent = isCriticalBar ? Math.max(percent, 3) : percent;
+  const visiblePercent = percent <= 0 ? 0 : isCriticalBar ? Math.max(percent, 3) : percent;
 
   const criticalTrackStyle = isCriticalBar
     ? { background: "rgba(245, 158, 11, 0.16)", borderColor: "rgba(245, 158, 11, 0.4)" }

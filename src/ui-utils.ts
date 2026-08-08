@@ -174,10 +174,10 @@ export function requireApi(setFatal: (message: string) => void) {
 }
 
 export function clampPercent(value: number): number {
- if (!Number.isFinite(value)) {
- return 1;
- }
- return Math.max(1, Math.min(95, Math.round(value)));
+  if (!Number.isFinite(value) || value <= 0) {
+    return 0;
+  }
+  return Math.max(0, Math.min(100, Math.round(value)));
 }
 
 export function clampNumber(value: number, min: number, max: number): number {
