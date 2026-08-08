@@ -292,9 +292,9 @@ h1, h2, h3, h4, h5, h6, .brand h1, .brand-title h1 {
 .brand h1 {
   margin: 0;
   color: var(--fg);
-  font-family: "Segoe UI", system-ui, sans-serif;
-  font-size: 19px;
-  font-weight: 700;
+  font-family: "Space Grotesk", "Outfit", "Inter", sans-serif;
+  font-size: 21px;
+  font-weight: 800;
   text-transform: none;
   letter-spacing: 0.02em;
   line-height: 1;
@@ -305,8 +305,8 @@ h1, h2, h3, h4, h5, h6, .brand h1, .brand-title h1 {
   gap: 10px;
 }
 .brand-icon {
-  width: 46px;
-  height: 46px;
+  width: 32px;
+  height: 32px;
   display: block;
   object-fit: contain;
   border-radius: 0;
