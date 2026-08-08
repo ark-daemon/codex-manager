@@ -281,11 +281,17 @@ export const AccountCard = memo(function AccountCard({
                       {formatResetCountdown(primaryPool.resetAt)}
                     </span>
                   ) : <span />}
-                  {profile.updatedAt && (
+                  {profile.isActive ? (
+                    <span className="quota-last-used active-now">Active now</span>
+                  ) : profile.lastUsedAt ? (
                     <span className="quota-last-used">
-                      {formatRelativeTime(profile.updatedAt)}
+                      Used {formatRelativeTime(profile.lastUsedAt)}
                     </span>
-                  )}
+                  ) : profile.updatedAt ? (
+                    <span className="quota-last-used">
+                      Updated {formatRelativeTime(profile.updatedAt)}
+                    </span>
+                  ) : null}
                 </div>
               </div>
             ) : (

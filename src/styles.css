@@ -1136,6 +1136,11 @@ h1, h2, h3, h4, h5, h6, .brand h1, .brand-title h1 {
   font-family: "JetBrains Mono", monospace;
   opacity: 0.8;
 }
+.quota-last-used.active-now {
+  color: #22C55E;
+  font-weight: 700;
+  opacity: 1;
+}
 
 .card-menu {
   position: fixed;

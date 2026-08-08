@@ -45,6 +45,7 @@ export interface ProfileManifest {
   planType?: string;
   createdAt: string;
   updatedAt: string;
+  lastUsedAt?: string;
   lastBackupAt?: string;
   usage?: UsageSnapshot;
 }

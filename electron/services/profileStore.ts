@@ -431,9 +431,13 @@ export class ProfileStore {
       await this.runSwitchStep("activating selected Codex account", switchContext, () =>
         this.writeReadableLiveAuth(definition, manifest, targetAuthJson)
       );
-      await this.runSwitchStep("marking active profile", switchContext, () => this.settingsStore.update((nextSettings) => {
-        nextSettings.activeProfileId = input.profileId;
-      }));
+      await this.runSwitchStep("marking active profile", switchContext, async () => {
+        const now = new Date().toISOString();
+        await this.writeManifest({ ...manifest, lastUsedAt: now, updatedAt: now });
+        await this.settingsStore.update((nextSettings) => {
+          nextSettings.activeProfileId = input.profileId;
+        });
+      });
       await this.runSwitchStep("waiting before Codex relaunch", switchContext, () => delay(500));
       await this.runSwitchStep("relaunching Codex / ChatGPT", switchContext, () => this.processManager.launch(executablePath, definition));
       // Return immediately so the UI unblocks \u2014 quota refresh is a network call
