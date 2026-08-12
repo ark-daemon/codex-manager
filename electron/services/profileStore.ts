@@ -170,7 +170,7 @@ export class ProfileStore {
       settings,
       defaultExecutablePath: getDefaultExecutablePath(),
       appInfo: {
-        version: process.env.npm_package_version ?? "0.1.0",
+        version: electron.app?.getVersion() ?? process.env.npm_package_version ?? "0.1.0",
         platform: process.platform,
         license: "CC BY-NC-SA 4.0",
         storageEncrypted: isEncryptionAvailable()
