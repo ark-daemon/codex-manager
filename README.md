@@ -46,7 +46,7 @@ Download the latest release for your platform from the [Releases page](https://g
 | **macOS** | `Relay-x.x.x.dmg` |
 | **Linux** | `relay_x.x.x.deb` or `.tar.gz` |
 
-The app checks for updates on launch and asks before downloading (no silent background updates).
+The app checks for updates on launch and allows manual checks from the Settings page (no silent background updates).
 
 > [!IMPORTANT]
 > **Linux:** encrypted auth storage needs `libsecret-1`. Install with `sudo apt install libsecret-1-0` (Debian/Ubuntu) or your distro’s equivalent. If no keyring is available, set a session passphrase (AES-256-GCM) when prompted.
@@ -78,7 +78,9 @@ Profiles are stored under the Relay data directory (see below). On switch, the a
 |-----------------------|----------------------------|
 | `auth.json`, `profiles/`, `profiles.json`, `cap_sid` | Conversation DBs (`state_5.sqlite*`, …) |
 | `config.toml`, hooks, rules, agents, memories | `sessions/`, session index |
-| Per-account UI state (`.codex-global-state.json`) | Cache, installation id, model list |
+| Per-account UI state (`.codex-global-state.json`)* | Cache, installation id, model list |
+
+_\* Select global state fields (like recent local projects, workspaces, and active plugins) are merged across accounts so they are always available._
 
 Conversation history is intentionally **not** forked per account: Codex stores threads without a per-user partition in those databases, so swapping them would corrupt other accounts’ history.
 
