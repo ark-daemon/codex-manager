@@ -124,7 +124,7 @@ export class ProfileStore {
     // this handles reinstalls where the user has logged into Codex manually.
     if (agentRoot) {
       const liveAuth = await readLiveAuthJson(path.join(agentRoot, "auth.json"));
-      if (liveAuth && !isTokenExpired(liveAuth)) {
+      if (liveAuth && !isTokenPermanentlyExpired(liveAuth)) {
         const liveEmail = findEmailFromIdToken(liveAuth);
         const matchingProfile = liveEmail
           ? existing.find((profile) => profile.email?.toLowerCase() === liveEmail.toLowerCase())
@@ -1013,7 +1013,7 @@ export class ProfileStore {
       return undefined;
     }
     const liveAuth = await readLiveAuthJson(path.join(agentRoot, "auth.json"));
-    if (!liveAuth || isTokenExpired(liveAuth)) {
+    if (!liveAuth || isTokenPermanentlyExpired(liveAuth)) {
       return undefined;
     }
     const liveEmail = findEmailFromIdToken(liveAuth)?.toLowerCase();
@@ -1025,10 +1025,10 @@ export class ProfileStore {
   private async reconcileActiveProfileId(settings: AppSettings, profiles: ProfileSummary[]): Promise<string | undefined> {
     const agentRoot = getAppDefinition().sourceRoots.find((root) => root.key === "agent")?.livePath;
     const liveAuth = agentRoot ? await readLiveAuthJson(path.join(agentRoot, "auth.json")) : undefined;
-    // If Codex has no live auth at all or its tokens are expired,
+    // If Codex has no live auth at all or its tokens are permanently expired (no refresh token),
     // nothing is active. Clear the stale activeProfileId so profiles
     // do not falsely show the green "Active" border.
-    if (!liveAuth || isTokenExpired(liveAuth)) {
+    if (!liveAuth || isTokenPermanentlyExpired(liveAuth)) {
       if (settings.activeProfileId !== undefined) {
         await this.settingsStore.update((nextSettings) => {
           nextSettings.activeProfileId = undefined;
@@ -1465,6 +1465,9 @@ function isTokenExpired(authJson: CodexAuthJson): boolean {
   const exp = payload["exp"];
   if (typeof exp !== "number" || !Number.isFinite(exp)) return false;
   return Date.now() / 1000 >= exp;
+}
+function isTokenPermanentlyExpired(authJson: CodexAuthJson): boolean {
+  return isTokenExpired(authJson) && !authJson.tokens?.refresh_token;
 }
 function uniqueStrings(values: string[]): string[] {
   return [...new Set(values)];
