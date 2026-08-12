@@ -23,6 +23,7 @@ export function SettingsPage({
   onOpenLogDirectory
 }: SettingsPageProps) {
   const [settingsTab, setSettingsTab] = useState<SettingsTab>("general");
+  const [isCheckingUpdates, setIsCheckingUpdates] = useState(false);
   const [generalForm, setGeneralForm] = useState({
     executablePath: state.settings.executablePath ?? state.defaultExecutablePath,
     language: state.settings.language,
@@ -279,7 +280,24 @@ export function SettingsPage({
             <p>{copy.settings.version}: {state.appInfo.version}</p>
             <p>{copy.settings.platform}: {state.appInfo.platform}</p>
             <p>{copy.settings.license}: {state.appInfo.license}</p>
-            <button onClick={() => void onOpenLogDirectory()}>{copy.settings.openLogDirectory}</button>
+            <div style={{ display: "flex", gap: "8px", marginTop: "12px" }}>
+              <button onClick={() => void onOpenLogDirectory()}>{copy.settings.openLogDirectory}</button>
+              <button 
+                disabled={isCheckingUpdates}
+                onClick={async () => {
+                  const api = getApi();
+                  if (!api) return;
+                  setIsCheckingUpdates(true);
+                  try {
+                    await api.checkForUpdates();
+                  } finally {
+                    setIsCheckingUpdates(false);
+                  }
+                }}
+              >
+                {isCheckingUpdates ? "Checking..." : "Check for Updates"}
+              </button>
+            </div>
           </section>
         </div>
       )}

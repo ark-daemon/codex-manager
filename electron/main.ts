@@ -588,7 +588,10 @@ function initializeAutoUpdater(): void {
   autoUpdater.autoDownload = false;
   autoUpdater.autoInstallOnAppQuit = true;
 
+  let manualUpdateCheck = false;
+
   autoUpdater.on("update-available", (info) => {
+    manualUpdateCheck = false;
     console.info(`[AutoUpdater] update available: v${info.version}`);
     if (!mainWindow) return;
     dialog.showMessageBox(mainWindow, {
@@ -628,13 +631,38 @@ function initializeAutoUpdater(): void {
     });
   });
 
+  autoUpdater.on("update-not-available", () => {
+    if (manualUpdateCheck) {
+      manualUpdateCheck = false;
+      if (!mainWindow) return;
+      dialog.showMessageBox(mainWindow, {
+        type: "info",
+        title: "Up to Date",
+        message: `You are already running the latest version of Relay (v${app.getVersion()}).`
+      });
+    }
+  });
+
   autoUpdater.on("error", (err) => {
+    manualUpdateCheck = false;
     console.error("[AutoUpdater] error:", err);
   });
 
   // Run update check (does not download because autoDownload is false).
   void autoUpdater.checkForUpdates().catch((error) => {
     console.error("[AutoUpdater] checkForUpdates failed:", error);
+  });
+
+  safeHandle("system:check-updates", async () => {
+    manualUpdateCheck = true;
+    try {
+      await autoUpdater.checkForUpdates();
+      return "checking";
+    } catch (error) {
+      console.error("[AutoUpdater] manual checkForUpdates failed:", error);
+      manualUpdateCheck = false;
+      return "error";
+    }
   });
 }
 

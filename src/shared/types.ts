@@ -192,6 +192,7 @@ export interface ProfileSwitcherApi {
   openProfileFolder(input: ProfileActionInput): Promise<void>;
   openLogDirectory(): Promise<void>;
   browseExecutable(): Promise<string | null>;
+  checkForUpdates(): Promise<string>;
   /** True when there is no OS keychain and no session passphrase has been set yet. */
   needsPassphrase(): Promise<boolean>;
   /** Set the in-memory session passphrase used to seal auth files when no keychain exists. */

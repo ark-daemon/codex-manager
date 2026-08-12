@@ -37,6 +37,7 @@ const api: ProfileSwitcherApi = {
   openProfileFolder: (input: ProfileActionInput) => ipcRenderer.invoke("profiles:open-folder", input) as Promise<void>,
   openLogDirectory: () => ipcRenderer.invoke("system:open-log-directory") as Promise<void>,
   browseExecutable: () => ipcRenderer.invoke("system:browse-executable") as Promise<string | null>,
+  checkForUpdates: () => ipcRenderer.invoke("system:check-updates") as Promise<string>,
   needsPassphrase: () => ipcRenderer.invoke("security:needs-passphrase") as Promise<boolean>,
   unlock: (input: { passphrase: string }) => ipcRenderer.invoke("security:unlock", input) as Promise<boolean>,
   focusProfile: (listener) => {
