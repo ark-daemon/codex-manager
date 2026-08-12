@@ -1,85 +1,85 @@
 {
  "name": "relay",
- "version": "0.2.0",
+ "version": "0.2.1",
  "private": true,
  "description": "Account switcher for the ChatGPT desktop app.",
  "main": "dist-electron/electron/main.js",
  "type": "module",
  "scripts": {
- "dev": "vite --host 127.0.0.1",
- "start": "npm run build && electron .",
- "build": "tsc -p tsconfig.electron.json && node scripts/copy-assets.mjs && vite build",
- "test": "vitest run --root .",
- "dist": "npm run build && electron-builder --win",
- "dist:mac": "npm run build && electron-builder --mac",
- "dist:linux": "npm run build && electron-builder --linux"
+  "dev": "vite --host 127.0.0.1",
+  "start": "npm run build && electron .",
+  "build": "tsc -p tsconfig.electron.json && node scripts/copy-assets.mjs && vite build",
+  "test": "vitest run --root .",
+  "dist": "npm run build && electron-builder --win",
+  "dist:mac": "npm run build && electron-builder --mac",
+  "dist:linux": "npm run build && electron-builder --linux"
  },
  "author": {
- "name": "Relay",
- "email": "arkucrypto@gmail.com"
+  "name": "Relay",
+  "email": "arkucrypto@gmail.com"
  },
  "dependencies": {
- "electron-updater": "^6.8.9",
- "ps-list": "^9.0.0"
+  "electron-updater": "^6.8.9",
+  "ps-list": "^9.0.0"
  },
  "devDependencies": {
- "@testing-library/jest-dom": "^6.9.1",
- "@testing-library/react": "^16.3.0",
- "@types/node": "^24.10.2",
- "@types/react": "^19.2.7",
- "@types/react-dom": "^19.2.3",
- "@vitejs/plugin-react": "^5.1.1",
- "electron": "^39.2.7",
- "electron-builder": "^26.0.12",
- "jsdom": "^27.3.0",
- "lucide-react": "^0.561.0",
- "react": "^19.2.3",
- "react-dom": "^19.2.3",
- "typescript": "^5.9.3",
- "vite": "^7.2.7",
- "vitest": "^4.0.15"
+  "@testing-library/jest-dom": "^6.9.1",
+  "@testing-library/react": "^16.3.0",
+  "@types/node": "^24.10.2",
+  "@types/react": "^19.2.7",
+  "@types/react-dom": "^19.2.3",
+  "@vitejs/plugin-react": "^5.1.1",
+  "electron": "^39.2.7",
+  "electron-builder": "^26.0.12",
+  "jsdom": "^27.3.0",
+  "lucide-react": "^0.561.0",
+  "react": "^19.2.3",
+  "react-dom": "^19.2.3",
+  "typescript": "^5.9.3",
+  "vite": "^7.2.7",
+  "vitest": "^4.0.15"
  },
  "build": {
- "appId": "com.relay.app",
- "publish": [
- {
- "provider": "github",
- "owner": "ark-daemon",
- "repo": "codex-manager",
- "releaseType": "draft"
- }
- ],
- "productName": "Relay",
- "asar": true,
- "compression": "maximum",
- "files": [
- "dist/renderer/**/*",
- "!dist/renderer/**/*.map",
- "dist-electron/**/*",
- "!dist-electron/**/*.map",
- "package.json"
- ],
- "win": {
- "icon": "assets/app-icon.ico",
- "target": [
- "nsis",
- "portable"
- ]
- },
- "mac": {
- "icon": "assets/app-icon.icns",
- "target": [
- "dmg"
- ]
- },
- "linux": {
- "icon": "assets/icon.png",
- "maintainer": "Relay <arkucrypto@gmail.com>",
- "category": "Utility",
- "target": [
- "deb",
- "tar.gz"
- ]
- }
+  "appId": "com.relay.app",
+  "publish": [
+   {
+    "provider": "github",
+    "owner": "ark-daemon",
+    "repo": "codex-manager",
+    "releaseType": "draft"
+   }
+  ],
+  "productName": "Relay",
+  "asar": true,
+  "compression": "maximum",
+  "files": [
+   "dist/renderer/**/*",
+   "!dist/renderer/**/*.map",
+   "dist-electron/**/*",
+   "!dist-electron/**/*.map",
+   "package.json"
+  ],
+  "win": {
+   "icon": "assets/app-icon.ico",
+   "target": [
+    "nsis",
+    "portable"
+   ]
+  },
+  "mac": {
+   "icon": "assets/app-icon.icns",
+   "target": [
+    "dmg"
+   ]
+  },
+  "linux": {
+   "icon": "assets/icon.png",
+   "maintainer": "Relay <arkucrypto@gmail.com>",
+   "category": "Utility",
+   "target": [
+    "deb",
+    "tar.gz"
+   ]
+  }
  }
 }
