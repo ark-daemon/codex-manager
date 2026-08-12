@@ -58,11 +58,20 @@ const SHARED_GLOBAL_STATE_ARRAY_KEYS = [
   "electron-saved-workspace-roots",
   "active-workspace-roots",
   "project-order",
-  "projectless-thread-ids"
+  "projectless-thread-ids",
+  "electron-completed-local-data-migration-ids"
 ] as const;
-const SHARED_GLOBAL_STATE_OBJECT_KEYS = [
+const SHARED_GLOBAL_STATE_STRING_RECORD_KEYS = [
   "electron-workspace-root-labels",
   "thread-workspace-root-hints"
+] as const;
+const SHARED_GLOBAL_STATE_ANY_RECORD_KEYS = [
+  "local-projects",
+  "thread-project-assignments",
+  "thread-writable-roots"
+] as const;
+const SHARED_GLOBAL_STATE_LIVE_OVERRIDE_KEYS = [
+  "selected-project"
 ] as const;
 export class ProfileStore {
   private readonly settingsStore: SettingsStore;
@@ -1157,8 +1166,12 @@ async function readTextFile(filePath: string): Promise<string> {
   }
 }
 function hasSharedProjectState(state: Record<string, unknown>): boolean {
-  return [...SHARED_GLOBAL_STATE_ARRAY_KEYS, ...SHARED_GLOBAL_STATE_OBJECT_KEYS]
-    .some((key) => state[key] !== undefined);
+  return [
+    ...SHARED_GLOBAL_STATE_ARRAY_KEYS,
+    ...SHARED_GLOBAL_STATE_STRING_RECORD_KEYS,
+    ...SHARED_GLOBAL_STATE_ANY_RECORD_KEYS,
+    ...SHARED_GLOBAL_STATE_LIVE_OVERRIDE_KEYS
+  ].some((key) => state[key] !== undefined);
 }
 function hasSharedPluginConfig(config: string): boolean {
   return extractTomlSections(config).some((section) => isSharedPluginSection(section.name));
@@ -1250,7 +1263,7 @@ function mergeSharedProjectState(targetState: Record<string, unknown>, liveState
       merged[key] = values;
     }
   }
-  for (const key of SHARED_GLOBAL_STATE_OBJECT_KEYS) {
+  for (const key of SHARED_GLOBAL_STATE_STRING_RECORD_KEYS) {
     const targetMap = asStringRecord(targetState[key]);
     const liveMap = asStringRecord(liveState[key]);
     const values = { ...targetMap, ...liveMap };
@@ -1258,13 +1271,28 @@ function mergeSharedProjectState(targetState: Record<string, unknown>, liveState
       merged[key] = values;
     }
   }
+  for (const key of SHARED_GLOBAL_STATE_ANY_RECORD_KEYS) {
+    const targetMap = asAnyRecord(targetState[key]);
+    const liveMap = asAnyRecord(liveState[key]);
+    const values = { ...targetMap, ...liveMap };
+    if (Object.keys(values).length > 0) {
+      merged[key] = values;
+    }
+  }
+  for (const key of SHARED_GLOBAL_STATE_LIVE_OVERRIDE_KEYS) {
+    if (key in liveState) {
+      merged[key] = liveState[key];
+    }
+  }
   // Preserve keys from liveState that are not in targetState and not part of
   // the shared-project-state contract. Newer versions of Codex may add fields
   // (e.g. activeProfileId, session flags) that are needed for startup; losing
   // them causes Codex to prompt for re-login on restart.
   for (const key of Object.keys(liveState)) {
-    const isShared = SHARED_GLOBAL_STATE_ARRAY_KEYS.includes(key as typeof SHARED_GLOBAL_STATE_ARRAY_KEYS[number]) ||
-      SHARED_GLOBAL_STATE_OBJECT_KEYS.includes(key as typeof SHARED_GLOBAL_STATE_OBJECT_KEYS[number]);
+    const isShared = (SHARED_GLOBAL_STATE_ARRAY_KEYS as readonly string[]).includes(key) ||
+      (SHARED_GLOBAL_STATE_STRING_RECORD_KEYS as readonly string[]).includes(key) ||
+      (SHARED_GLOBAL_STATE_ANY_RECORD_KEYS as readonly string[]).includes(key) ||
+      (SHARED_GLOBAL_STATE_LIVE_OVERRIDE_KEYS as readonly string[]).includes(key);
     if (!isShared && !(key in merged)) {
       merged[key] = liveState[key];
     }
@@ -1293,6 +1321,13 @@ function asStringRecord(value: unknown): Record<string, string> {
     return {};
   }
   return Object.fromEntries(Object.entries(value).filter((entry): entry is [string, string] => typeof entry[1] === "string"));
+}
+
+function asAnyRecord(value: unknown): Record<string, unknown> {
+  if (!isPlainRecord(value)) {
+    return {};
+  }
+  return value;
 }
 function isPlainRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
