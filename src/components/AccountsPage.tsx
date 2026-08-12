@@ -151,15 +151,7 @@ export function AccountsPage({
 
         <StatsBar stats={stats} copy={copy} />
 
-        <button
-          className="icon-button"
-          onClick={() => void onRefreshAll()}
-          title={copy.accounts.refreshAllQuotas}
-          disabled={refreshingAll}
-          aria-busy={refreshingAll}
-        >
-          <RefreshCw className={refreshingAll ? "spin-icon" : undefined} size={18} />
-        </button>
+
       </header>
 
       {/* Main Controls Toolbar */}
@@ -179,6 +171,10 @@ export function AccountsPage({
 
           <button aria-label={copy.messages.importProfiles} title={copy.messages.importProfiles} onClick={() => void onImportProfiles()}>
             <Import size={15} /> {copy.actions.import}
+          </button>
+
+          <button aria-label={copy.accounts.refreshAllQuotas} title={copy.accounts.refreshAllQuotas} onClick={() => void onRefreshAll()} disabled={refreshingAll}>
+            <RefreshCw className={refreshingAll ? "spin-icon" : undefined} size={15} /> {copy.actions.refresh}
           </button>
         </div>
 
