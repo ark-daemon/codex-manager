@@ -1,7 +1,6 @@
 import { memo } from "react";
-import { buildStats } from "../ui-utils";
+import { buildStats, clampPercent, getBarColor } from "../ui-utils";
 import { copyForLanguage } from "../i18n";
-import { clampPercent, getBarColor } from "../ui-utils";
 
 type UiCopy = ReturnType<typeof copyForLanguage>;
 
@@ -11,7 +10,7 @@ interface StatsBarProps {
 }
 
 export const StatsBar = memo(function StatsBar({ stats, copy }: StatsBarProps) {
-  const percent = stats.lowestRemainingPercent ?? stats.globalQuotaPercent ?? 0;
+  const percent = stats.globalQuotaPercent ?? 0;
 
   return (
     <div className="stats-bar">
@@ -31,7 +30,7 @@ export const StatsBar = memo(function StatsBar({ stats, copy }: StatsBarProps) {
       </div>
       <div className="stat-box wide global-quota-stat">
         <div className="stat-header">
-          <strong>{stats.lowestRemainingPercent !== undefined ? `${Math.round(stats.lowestRemainingPercent)}%` : "—"}</strong>
+          <strong>{stats.globalQuotaPercent !== undefined ? `${Math.round(stats.globalQuotaPercent)}%` : "—"}</strong>
           <span>{copy.stats.globalQuota}</span>
         </div>
         <div className="global-quota-bar-track">

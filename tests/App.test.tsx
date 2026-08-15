@@ -460,7 +460,7 @@ describe("App", () => {
     render(<App />);
     expect(await screen.findByText("Global quota")).toBeInTheDocument();
     const statText = Array.from(document.querySelectorAll(".stat-box")).map((element) => element.textContent);
-    expect(statText).toEqual(expect.arrayContaining(["3Accounts", "2Ready", "0Rate Limited", "50%Global quota"]));
+    expect(statText).toEqual(expect.arrayContaining(["3Accounts", "2Ready", "0Rate Limited", "75%Global quota"]));
   });
 });
 function fakeApi(state: AppState): ProfileSwitcherApi {
