@@ -353,33 +353,37 @@ export class ProfileStore {
         this.requireProfileAuthJson(input.profileId)
       );
       if (isTokenExpired(targetAuthJson)) {
-        console.warn(`[Relay switch] ${switchContext}: target auth token is expired \u2014 attempting refresh`);
+        console.warn(`[Relay switch] ${switchContext}: target auth token is expired — attempting refresh`);
         const refreshToken = targetAuthJson.tokens?.refresh_token;
         if (refreshToken) {
-          const refreshed = await this.runSwitchStep("refreshing expired auth token", switchContext, () =>
-            this.usageService.tryRefreshToken(refreshToken)
-          );
-          if (refreshed) {
-            targetAuthJson = {
-              ...targetAuthJson,
-              tokens: {
-                ...targetAuthJson.tokens,
-                account_id: targetAuthJson.tokens?.account_id,
-                access_token: refreshed.accessToken,
-                id_token: refreshed.idToken ?? targetAuthJson.tokens?.id_token,
-                refresh_token: refreshed.refreshToken ?? refreshToken
-              },
-              last_refresh: new Date().toISOString()
-            };
-            await writeAuthFile(
-              path.join(profilePath, "codex-agent", "auth.json"),
-              `${JSON.stringify(targetAuthJson, null, 2)}\n`
+          try {
+            const refreshed = await this.runSwitchStep("refreshing expired auth token", switchContext, () =>
+              this.usageService.tryRefreshToken(refreshToken)
             );
-          } else {
-            throw new Error("This account's tokens have expired and could not be refreshed. Add this account again via the login flow.");
+            if (refreshed) {
+              targetAuthJson = {
+                ...targetAuthJson,
+                tokens: {
+                  ...targetAuthJson.tokens,
+                  account_id: targetAuthJson.tokens?.account_id,
+                  access_token: refreshed.accessToken,
+                  id_token: refreshed.idToken ?? targetAuthJson.tokens?.id_token,
+                  refresh_token: refreshed.refreshToken ?? refreshToken
+                },
+                last_refresh: new Date().toISOString()
+              };
+              await writeAuthFile(
+                path.join(profilePath, "codex-agent", "auth.json"),
+                `${JSON.stringify(targetAuthJson, null, 2)}\n`
+              );
+            } else {
+              console.warn(`[Relay switch] ${switchContext}: token refresh failed or timed out — continuing with stored credentials so Codex can refresh session on launch`);
+            }
+          } catch (error) {
+            console.warn(`[Relay switch] ${switchContext}: silent token refresh error — continuing switch:`, error);
           }
         } else {
-          throw new Error("This account's tokens have expired and there is no refresh token available. Add this account again via the login flow.");
+          console.warn(`[Relay switch] ${switchContext}: no refresh_token found on expired profile — continuing switch`);
         }
       }
       await this.runSwitchStep("closing Codex / ChatGPT", switchContext, () => this.processManager.close(definition));
