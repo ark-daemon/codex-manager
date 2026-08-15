@@ -589,6 +589,7 @@ function initializeAutoUpdater(): void {
   autoUpdater.autoInstallOnAppQuit = true;
 
   let manualUpdateCheck = false;
+  let isDownloading = false;
 
   autoUpdater.on("update-available", (info) => {
     manualUpdateCheck = false;
@@ -603,8 +604,24 @@ function initializeAutoUpdater(): void {
       cancelId: 1
     }).then((result) => {
       if (result.response === 0) {
+        isDownloading = true;
+        if (mainWindow) {
+          dialog.showMessageBox(mainWindow, {
+            type: "info",
+            title: "Downloading Update",
+            message: `Relay v${info.version} is downloading in the background. You will be prompted when it is ready to install.`
+          }).catch(() => undefined);
+        }
         void autoUpdater.downloadUpdate().catch((error) => {
+          isDownloading = false;
           console.error("[AutoUpdater] downloadUpdate failed:", error);
+          if (mainWindow) {
+            dialog.showMessageBox(mainWindow, {
+              type: "error",
+              title: "Download Failed",
+              message: `Could not download the update: ${error instanceof Error ? error.message : String(error)}`
+            }).catch(() => undefined);
+          }
         });
       }
     }).catch((error) => {
@@ -612,7 +629,12 @@ function initializeAutoUpdater(): void {
     });
   });
 
+  autoUpdater.on("download-progress", (progress) => {
+    console.info(`[AutoUpdater] download progress: ${Math.round(progress.percent)}% (${progress.transferred}/${progress.total})`);
+  });
+
   autoUpdater.on("update-downloaded", (info) => {
+    isDownloading = false;
     console.info(`[AutoUpdater] update downloaded: v${info.version}`);
     if (!mainWindow) return;
     dialog.showMessageBox(mainWindow, {
@@ -644,8 +666,18 @@ function initializeAutoUpdater(): void {
   });
 
   autoUpdater.on("error", (err) => {
+    const wasChecking = manualUpdateCheck;
+    const wasDownloading = isDownloading;
     manualUpdateCheck = false;
+    isDownloading = false;
     console.error("[AutoUpdater] error:", err);
+    if ((wasChecking || wasDownloading) && mainWindow) {
+      dialog.showMessageBox(mainWindow, {
+        type: "error",
+        title: "Update Error",
+        message: `An error occurred while checking for or downloading updates:\n${err instanceof Error ? err.message : String(err)}`
+      }).catch(() => undefined);
+    }
   });
 
   // Run update check (does not download because autoDownload is false).
@@ -661,6 +693,13 @@ function initializeAutoUpdater(): void {
     } catch (error) {
       console.error("[AutoUpdater] manual checkForUpdates failed:", error);
       manualUpdateCheck = false;
+      if (mainWindow) {
+        dialog.showMessageBox(mainWindow, {
+          type: "error",
+          title: "Update Error",
+          message: `Unable to check for updates: ${error instanceof Error ? error.message : String(error)}`
+        }).catch(() => undefined);
+      }
       return "error";
     }
   });

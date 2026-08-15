@@ -45,8 +45,7 @@
    {
     "provider": "github",
     "owner": "ark-daemon",
-    "repo": "codex-manager",
-    "releaseType": "draft"
+    "repo": "relay"
    }
   ],
   "productName": "Relay",

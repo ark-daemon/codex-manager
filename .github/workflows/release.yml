@@ -113,12 +113,12 @@ jobs:
           find release-assets -type f -exec cp -n {} upload/ \;
           ls -la upload
 
-      - name: Create GitHub Release (draft) with all assets
+      - name: Create GitHub Release with all assets
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.tag.outputs.tag }}
           name: ${{ steps.tag.outputs.tag }}
-          draft: true
+          draft: false
           generate_release_notes: true
           fail_on_unmatched_files: true
           files: upload/*
