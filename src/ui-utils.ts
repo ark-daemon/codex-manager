@@ -1,19 +1,19 @@
 import { AppSettings, AppState, ProfileActionInput, ProfileSummary, QuotaPool, UsageSnapshot } from "./shared/types.js";
-import { isEmail, primaryPool, quotaPercent } from "./shared/utils.js";
+import { isEmail, quotaPercent } from "./shared/utils.js";
 
 export function displayPrimaryLabel(profile: ProfileSummary): string {
- const name = profile.name.trim();
- if (!profile.email) {
- return name || "Codex profile";
- }
- if (!name || isEmailLike(name) || name.toLowerCase() === profile.email.toLowerCase()) {
- return profile.email;
- }
- return name;
+  const name = profile.name.trim();
+  if (!profile.email) {
+    return name || "Codex profile";
+  }
+  if (!name || isEmailLike(name) || name.toLowerCase() === profile.email.toLowerCase()) {
+    return profile.email;
+  }
+  return name;
 }
 
 function isEmailLike(value: string): boolean {
- return isEmail(value);
+  return isEmail(value);
 }
 
 export function statusForProfile(profile: ProfileSummary): "active" | "ready" | "limited" | "expired" | "unknown" {
@@ -21,7 +21,7 @@ export function statusForProfile(profile: ProfileSummary): "active" | "ready" | 
   if (profile.usage?.message === "Token expired") return "expired";
 
   const pools = availablePools(profile.usage);
-  if (pools.some((pool) => pool.status === "exhausted" || (typeof pool.remaining === "number" && pool.remaining <= 0))) {
+  if (pools.some((pool) => pool.status === "exhausted" || (Number.isFinite(pool.remaining) && (pool.remaining ?? 0) <= 0))) {
     return "limited";
   }
 
@@ -83,15 +83,25 @@ export function availablePools(usage: UsageSnapshot | undefined): QuotaPool[] {
  return pools;
 }
 
-export function buildStats(state: AppState | undefined) {
+export interface StatsSnapshot {
+  total: number;
+  active: number;
+  ready: number;
+  rateLimited: number;
+  unavailable: number;
+  globalQuotaPercent?: number;
+  lowestRemainingPercent?: number;
+}
+
+export function buildStats(state: AppState | undefined): StatsSnapshot {
   if (!state) {
-    return { total: 0, active: 0, ready: 0, rateLimited: 0, unavailable: 0, globalQuotaPercent: undefined as number | undefined, lowestRemainingPercent: undefined as number | undefined };
+    return { total: 0, active: 0, ready: 0, rateLimited: 0, unavailable: 0 };
   }
 
   const statuses = state.profiles.map((profile) => statusForProfile(profile));
   const availablePercents = state.profiles
     .map((profile) => quotaPercent(profile.usage))
-    .filter((value): value is number => typeof value === "number");
+    .filter((value): value is number => Number.isFinite(value));
   const unavailable = state.profiles.filter((profile) => {
     if (profile.usage?.status === "unavailable") {
       return true;
@@ -156,21 +166,21 @@ export function formatRelativeTime(dateStr?: string): string {
  * badges, not this bar.
  */
 export function getBarColor(percentRemaining: number, isRateLimited: boolean): string {
- if (isRateLimited) return "#f59e0b"; // amber \u2014 cycling / waiting for reset, not an error
- if (percentRemaining <= 20) return "#f59e0b"; // amber \u2014 running low
- return "#e06020"; // brand orange \u2014 healthy
+  if (isRateLimited) return "#f59e0b"; // amber \u2014 cycling / waiting for reset, not an error
+  if (percentRemaining <= 20) return "#f59e0b"; // amber \u2014 running low
+  return "#e06020"; // brand orange \u2014 healthy
 }
 
 export function getApi() {
- return typeof window !== "undefined" ? window.profileSwitcher : undefined;
+  return globalThis.window?.profileSwitcher;
 }
 
 export function requireApi(setFatal: (message: string) => void) {
- const api = getApi();
- if (!api) {
- setFatal("Renderer bridge is not available. Preload may not have loaded.");
- }
- return api;
+  const api = getApi();
+  if (!api) {
+    setFatal("Renderer bridge is not available. Preload may not have loaded.");
+  }
+  return api;
 }
 
 export function clampPercent(value: number): number {
@@ -181,44 +191,56 @@ export function clampPercent(value: number): number {
 }
 
 export function clampNumber(value: number, min: number, max: number): number {
- if (!Number.isFinite(value)) {
- return min;
- }
- return Math.max(min, Math.min(max, Math.round(value)));
+  if (!Number.isFinite(value)) {
+    return min;
+  }
+  return Math.max(min, Math.min(max, Math.round(value)));
 }
 
 export function resolveTheme(theme: AppSettings["theme"]): "light" | "dark" {
- if (theme === "dark" || theme === "light") {
- return theme;
- }
- return prefersDarkMode() ? "dark" : "light";
+  if (theme === "dark" || theme === "light") {
+    return theme;
+  }
+  return prefersDarkMode() ? "dark" : "light";
 }
 
 export function prefersDarkMode(): boolean {
- if (typeof window === "undefined" || typeof window.matchMedia !== "function") {
- return false;
- }
- return window.matchMedia("(prefers-color-scheme: dark)").matches;
+  if (!globalThis.window || !globalThis.window.matchMedia) {
+    return false;
+  }
+  return globalThis.window.matchMedia("(prefers-color-scheme: dark)").matches;
 }
 
 export function firstProfile(state: AppState): ProfileActionInput | undefined {
- const profile = state.profiles[0];
- return profile ? { profileId: profile.id } : undefined;
+  const profile = state.profiles[0];
+  return profile ? { profileId: profile.id } : undefined;
 }
 
 export function firstProfileByCreatedAt(state: AppState): ProfileActionInput | undefined {
- const profile = [...state.profiles].sort((left, right) => new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime())[0];
- return profile ? { profileId: profile.id } : undefined;
+  const profile = [...state.profiles].sort((left, right) => new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime())[0];
+  return profile ? { profileId: profile.id } : undefined;
 }
 
-export function errorMessage(error: unknown): string {
- if (!(error instanceof Error)) {
- return "Something went wrong.";
- }
+type ErrorCandidate = Error | string | null | undefined | { message?: string };
 
- return error.message
- .replace(/^Error invoking remote method '[^']+':\s*/i, "")
- .replace(/^Error:\s*/i, "");
+function isString(val: ErrorCandidate): val is string {
+  return Object.prototype.toString.call(val) === "[object String]";
+}
+
+export function errorMessage(error: Error | string | null | undefined | { message?: string }): string {
+  if (!error) {
+    return "Something went wrong.";
+  }
+  if (isString(error)) {
+    return error;
+  }
+  if (error instanceof Error || (Boolean(error.message) && isString(error.message))) {
+    return (error.message || "Something went wrong.")
+      .replace(/^Error invoking remote method '[^']+':\s*/i, "")
+      .replace(/^Error:\s*/i, "");
+  }
+
+  return "Something went wrong.";
 }
 
 export function formatDate(value?: string): string {

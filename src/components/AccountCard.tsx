@@ -3,7 +3,7 @@ import { createPortal } from "react-dom";
 import { FolderOpen, Pencil, RefreshCw, Trash2, MoreVertical, Archive } from "lucide-react";
 import { ProfileSummary } from "../shared/types";
 import { copyForLanguage, formatMessage } from "../i18n";
-import { displayPrimaryLabel, statusForProfile, availablePools, getBarColor, formatResetCountdown, getAvatarInitial, formatRelativeTime, getAccountPlan } from "../ui-utils";
+import { displayPrimaryLabel, statusForProfile, availablePools, getBarColor, formatResetCountdown, formatRelativeTime, getAccountPlan } from "../ui-utils";
 
 type UiCopy = ReturnType<typeof copyForLanguage>;
 
@@ -54,7 +54,8 @@ export const AccountCard = memo(function AccountCard({
       return;
     }
     function handleOutsideClick(e: MouseEvent) {
-      const target = e.target as Node;
+      if (!(e.target instanceof Node)) return;
+      const target = e.target;
       if (
         menuRef.current && !menuRef.current.contains(target) &&
         menuButtonRef.current && !menuButtonRef.current.contains(target)
@@ -76,7 +77,7 @@ export const AccountCard = memo(function AccountCard({
     ? (primaryPool.remaining / primaryPool.limit) * 100
     : 0;
   const isRateLimited = status === "limited"
-    || (primaryPool && (primaryPool.status === "exhausted" || (typeof primaryPool.remaining === "number" && primaryPool.remaining <= 0)));
+    || (primaryPool && (primaryPool.status === "exhausted" || (Number.isFinite(primaryPool.remaining) && (primaryPool.remaining ?? 0) <= 0)));
   const barColor = primaryPool ? getBarColor(percent, isRateLimited) : undefined;
   const isCriticalBar = isRateLimited || (primaryPool && percent <= 5);
   const visiblePercent = percent <= 0 ? 0 : isCriticalBar ? Math.max(percent, 3) : percent;
@@ -149,7 +150,7 @@ export const AccountCard = memo(function AccountCard({
     setRenaming(false);
   }
 
-  const menuPortal = menuOpen && menuPos && typeof document !== "undefined"
+  const menuPortal = menuOpen && menuPos && globalThis.document !== undefined
     ? createPortal(
       <div
         ref={menuRef}

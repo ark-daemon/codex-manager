@@ -18,7 +18,6 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import electron from "electron";
 import {
-  CMPWD_MAGIC,
   PassphraseRequiredError,
   hasSessionPassphrase,
   isPassphraseSealed,
@@ -28,10 +27,30 @@ import {
 
 const { safeStorage } = electron;
 
+export interface SafeStorageBackend {
+  isEncryptionAvailable(): boolean;
+  encryptString(plaintext: string): Buffer;
+  decryptString(encrypted: Buffer): string;
+}
+
+let activeBackend: SafeStorageBackend = safeStorage;
+
+export function setSafeStorageBackendForTest(backend: SafeStorageBackend | null): void {
+  activeBackend = backend ?? safeStorage;
+}
+
 /** Magic prefix that marks an on-disk file as keychain-encrypted by this module. */
 const MAGIC = Buffer.from("CMENC1:", "ascii");
 
+export function isKeychainSealed(raw: Buffer): boolean {
+  return raw.length > MAGIC.length && raw.subarray(0, MAGIC.length).equals(MAGIC);
+}
+
 export { PassphraseRequiredError } from "./sessionKey.js";
+
+export function decryptKeychainBuffer(encrypted: Buffer): string {
+  return activeBackend.decryptString(encrypted);
+}
 
 /**
  * Returns true when OS-level encryption is available.
@@ -40,7 +59,7 @@ export { PassphraseRequiredError } from "./sessionKey.js";
  */
 export function isEncryptionAvailable(): boolean {
   try {
-    return safeStorage.isEncryptionAvailable();
+    return activeBackend.isEncryptionAvailable();
   } catch {
     return false;
   }
@@ -99,7 +118,7 @@ export async function readAuthFile(filePath: string, options?: ReadAuthFileOptio
     }
     try {
       const encrypted = raw.slice(MAGIC.length);
-      return safeStorage.decryptString(encrypted);
+      return activeBackend.decryptString(encrypted);
     } catch (err) {
       console.error(`[authStorage] decryption failed for ${filePath}:`, err);
       const fallback = raw.toString("utf8");
@@ -124,9 +143,11 @@ export async function readAuthFile(filePath: string, options?: ReadAuthFileOptio
   // JSON immediately on first read so existing profiles become protected.
   const text = raw.toString("utf8");
   if (!options?.skipAutoEncrypt && looksLikeJson(text) && isSealingAvailable()) {
-    await writeAuthFile(filePath, text).catch((error: unknown) => {
+    try {
+      await writeAuthFile(filePath, text);
+    } catch (error) {
       console.warn(`[authStorage] could not migrate plain-text auth.json on read: ${filePath}`, error);
-    });
+    }
   }
   return text;
 }
@@ -201,7 +222,7 @@ export async function readAuthFileWithDiagnostics(filePath: string, options?: Re
       return { ...base, decryptionOutcome: "encrypted-unavailable", text: undefined };
     }
     try {
-      const text = safeStorage.decryptString(raw.slice(MAGIC.length));
+      const text = activeBackend.decryptString(raw.slice(MAGIC.length));
       return { ...base, decryptionOutcome: "encrypted-ok", text };
     } catch (err) {
       const decryptionError = err instanceof Error ? err.message : String(err);
@@ -214,7 +235,7 @@ export async function readAuthFileWithDiagnostics(filePath: string, options?: Re
   // --- Legacy: try blind safeStorage decrypt ---
   if (isEncryptionAvailable()) {
     try {
-      const decrypted = safeStorage.decryptString(raw);
+      const decrypted = activeBackend.decryptString(raw);
       if (looksLikeJson(decrypted)) {
         return { ...base, decryptionOutcome: "legacy-decrypted", text: decrypted };
       }
@@ -228,14 +249,61 @@ export async function readAuthFileWithDiagnostics(filePath: string, options?: Re
   if (looksLikeJson(text)) {
     if (!options?.skipAutoEncrypt && isSealingAvailable()) {
       // Opportunistically migrate to sealed storage.
-      await writeAuthFile(filePath, text).catch((error: unknown) => {
+      try {
+        await writeAuthFile(filePath, text);
+      } catch (error) {
         console.warn(`[authStorage] could not migrate plain-text auth.json on read: ${filePath}`, error);
-      });
+      }
     }
     return { ...base, decryptionOutcome: "plain-text", text };
   }
 
   return { ...base, decryptionOutcome: "unreadable", text: undefined };
+}
+
+/**
+ * Re-encrypts an unsealed or legacy-encrypted auth file in place using
+ * the best available storage scheme (keychain or session passphrase).
+ * Returns the scheme used, or throws PassphraseRequiredError if no key material exists.
+ */
+export async function reencryptAuthFile(filePath: string): Promise<"keychain" | "passphrase" | "encrypted"> {
+  const read = await readAuthFileWithDiagnostics(filePath, { skipAutoEncrypt: true });
+  if (!read.exists) {
+    throw new Error(`File does not exist: ${filePath}`);
+  }
+  if (!read.text) {
+    throw new Error(`Cannot re-encrypt ${filePath}: file is unreadable with current credentials (${read.decryptionOutcome})`);
+  }
+  if (!isSealingAvailable()) {
+    throw new PassphraseRequiredError();
+  }
+
+  await writeAuthFile(filePath, read.text);
+  return isEncryptionAvailable() ? "keychain" : "passphrase";
+}
+
+/**
+ * Ensures an auth file is securely stored. If the file is plain text or
+ * legacy-encrypted, it is migrated to the current scheme immediately.
+ * Throws PassphraseRequiredError if no key material is available.
+ */
+export async function ensureAuthFileEncrypted(filePath: string): Promise<"already-encrypted" | "encrypted"> {
+  let raw: Buffer;
+  try {
+    raw = await fs.readFile(filePath);
+  } catch {
+    return "already-encrypted"; // File does not exist yet; next write will be encrypted.
+  }
+
+  // Already modern-encrypted.
+  if (isKeychainSealed(raw) || isPassphraseSealed(raw)) {
+    return "already-encrypted";
+  }
+
+  // Plain text — re-seal in place.
+  const text = raw.toString("utf8");
+  await writeAuthFile(filePath, text);
+  return "encrypted";
 }
 
 /**
@@ -249,7 +317,7 @@ export async function writeAuthFile(filePath: string, content: string): Promise<
   await fs.mkdir(path.dirname(filePath), { recursive: true });
 
   if (isEncryptionAvailable()) {
-    const encrypted = safeStorage.encryptString(content);
+    const encrypted = activeBackend.encryptString(content);
     const payload = Buffer.concat([MAGIC, encrypted]);
     await fs.writeFile(filePath, payload);
     return true;
@@ -305,8 +373,12 @@ export async function migrateAuthFile(filePath: string): Promise<"encrypted" | "
 
 function looksLikeJson(value: string): boolean {
   try {
-    const parsed = JSON.parse(value) as unknown;
-    return Boolean(parsed && typeof parsed === "object");
+    const trimmed = value.trim();
+    if (!trimmed.startsWith("{") && !trimmed.startsWith("[")) {
+      return false;
+    }
+    JSON.parse(trimmed);
+    return true;
   } catch {
     return false;
   }

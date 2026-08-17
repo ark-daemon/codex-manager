@@ -1,6 +1,5 @@
 import { AppState } from "../shared/types";
 import { copyForLanguage } from "../i18n";
-import { displayPrimaryLabel } from "../ui-utils";
 import brandLogo from "../../assets/icon.png";
 
 type UiCopy = ReturnType<typeof copyForLanguage>;
@@ -26,7 +25,6 @@ export function Sidebar({
   onSetServiceRunning
 }: SidebarProps) {
   const autoSwitchBadgeLabel = `${autoSwitchSessionCount} auto-switch${autoSwitchSessionCount === 1 ? "" : "es"} performed this session`;
-  const activeProfile = state.profiles.find((p) => p.isActive);
 
   return (
     <aside className="sidebar">

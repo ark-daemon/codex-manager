@@ -2,29 +2,28 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-// Mock Electron with a working safeStorage so auth.json seals via the OS
-// keychain path (CMENC1), mirroring real Windows/macOS. A trivial XOR cipher
-// stands in for the platform keychain; it just needs a consistent round-trip.
-const KEY = 0x42;
-vi.mock("electron", () => {
- const safeStorage = {
- isEncryptionAvailable: () => true,
- encryptString: (plaintext: string): Buffer => {
- const buf = Buffer.from(plaintext, "utf8");
- for (let i = 0; i < buf.length; i++) buf[i] ^= KEY;
- return buf;
- },
- decryptString: (cipherBuf: Buffer): string => {
- const buf = Buffer.from(cipherBuf);
- for (let i = 0; i < buf.length; i++) buf[i] ^= KEY;
- return buf.toString("utf8");
- }
- };
- const shell = { openPath: vi.fn(async () => undefined) };
- return { safeStorage, shell, default: { safeStorage, shell } };
-});
-import { ProfileStore } from "../electron/services/profileStore.js";
+import { setSafeStorageBackendForTest } from "../electron/services/authStorage.js";
+import { ProfileStore, setShellOpenPathForTest } from "../electron/services/profileStore.js";
 import { AppSettings, ProfileManifest, UsageSnapshot } from "../src/shared/types.js";
+
+const KEY = 0x42;
+const safeStorageMock = {
+  isEncryptionAvailable: () => true,
+  encryptString: (plaintext: string): Buffer => {
+    const buf = Buffer.from(plaintext, "utf8");
+    for (let i = 0; i < buf.length; i++) buf[i] ^= KEY;
+    return buf;
+  },
+  decryptString: (cipherBuf: Buffer): string => {
+    const buf = Buffer.from(cipherBuf);
+    for (let i = 0; i < buf.length; i++) buf[i] ^= KEY;
+    return buf.toString("utf8");
+  }
+};
+
+setSafeStorageBackendForTest(safeStorageMock);
+setShellOpenPathForTest(vi.fn(async () => ""));
+
 const originalEnv = {
  APPDATA: process.env.APPDATA,
  LOCALAPPDATA: process.env.LOCALAPPDATA,
@@ -178,36 +177,39 @@ describe("ProfileStore profile lifecycle", () => {
  });
 });
 describe("ProfileStore switch flow", () => {
- it("copies profile files to live Codex paths and marks the profile active", async () => {
- const processManager = { isRunning: vi.fn(), close: vi.fn(async () => undefined), launch: vi.fn(async () => undefined) };
- const store = makeStore(makeUsageService(), processManager);
- await store.initialize();
- await writeCodexExecutable();
- await writeProfile(tempRoot, "p1", "Switch Me", "switch@example.com");
- await store.switchProfile({ profileId: "p1" });
- const liveAuth = JSON.parse(await fs.readFile(path.join(process.env.USERPROFILE ?? "", ".codex", "auth.json"), "utf8")) as { tokens: { id_token: string } };
- expect(emailFromJwt(liveAuth.tokens.id_token)).toBe("switch@example.com");
- expect((await store.getState()).settings.activeProfileId).toBe("p1");
- expect(processManager.close).toHaveBeenCalled();
- expect(processManager.launch).toHaveBeenCalled();
- });
- it("rebuilds Codex native profile files from saved auth before relaunch", async () => {
- const processManager = { isRunning: vi.fn(), close: vi.fn(async () => undefined), launch: vi.fn(async () => undefined) };
- const store = makeStore(makeUsageService(), processManager);
- await store.initialize();
- await writeCodexExecutable();
- await writeProfile(tempRoot, "p1", "Switch Me", "switch@example.com");
- await fs.writeFile(path.join(process.env.USERPROFILE ?? "", ".codex", "profiles.json"), JSON.stringify({
- profiles: [{ id: "old-chatgpt", label: "Old", email: "old@example.com", file: "old-chatgpt.json", updatedAt: new Date().toISOString() }]
- }), "utf8");
- await store.switchProfile({ profileId: "p1" });
- const liveAuthText = await fs.readFile(path.join(process.env.USERPROFILE ?? "", ".codex", "auth.json"), "utf8");
- expect(() => JSON.parse(liveAuthText)).not.toThrow();
- const profileAuth = JSON.parse(await fs.readFile(path.join(process.env.USERPROFILE ?? "", ".codex", "profiles", "switch-example-com-chatgpt.json"), "utf8")) as { tokens: { id_token: string } };
- expect(emailFromJwt(profileAuth.tokens.id_token)).toBe("switch@example.com");
- const index = JSON.parse(await fs.readFile(path.join(process.env.USERPROFILE ?? "", ".codex", "profiles.json"), "utf8")) as { profiles: Array<{ email?: string }> };
- expect(index.profiles.some((profile) => profile.email === "switch@example.com")).toBe(true);
- });
+  it("copies profile files to live Codex paths and marks the profile active", async () => {
+    const processManager = { isRunning: vi.fn(), close: vi.fn(async () => undefined), launch: vi.fn(async () => undefined) };
+    const store = makeStore(makeUsageService(), processManager);
+    await store.initialize();
+    await writeCodexExecutable();
+    await writeProfile(tempRoot, "p1", "Switch Me", "switch@example.com");
+    await store.switchProfile({ profileId: "p1" });
+    // SAFETY: parsing live auth json to check id_token
+    const liveAuth = JSON.parse(await fs.readFile(path.join(process.env.USERPROFILE ?? "", ".codex", "auth.json"), "utf8")) as { tokens: { id_token: string } };
+    expect(emailFromJwt(liveAuth.tokens.id_token)).toBe("switch@example.com");
+    expect((await store.getState()).settings.activeProfileId).toBe("p1");
+    expect(processManager.close).toHaveBeenCalled();
+    expect(processManager.launch).toHaveBeenCalled();
+  });
+  it("rebuilds Codex native profile files from saved auth before relaunch", async () => {
+    const processManager = { isRunning: vi.fn(), close: vi.fn(async () => undefined), launch: vi.fn(async () => undefined) };
+    const store = makeStore(makeUsageService(), processManager);
+    await store.initialize();
+    await writeCodexExecutable();
+    await writeProfile(tempRoot, "p1", "Switch Me", "switch@example.com");
+    await fs.writeFile(path.join(process.env.USERPROFILE ?? "", ".codex", "profiles.json"), JSON.stringify({
+      profiles: [{ id: "old-chatgpt", label: "Old", email: "old@example.com", file: "old-chatgpt.json", updatedAt: new Date().toISOString() }]
+    }), "utf8");
+    await store.switchProfile({ profileId: "p1" });
+    const liveAuthText = await fs.readFile(path.join(process.env.USERPROFILE ?? "", ".codex", "auth.json"), "utf8");
+    expect(() => JSON.parse(liveAuthText)).not.toThrow();
+    // SAFETY: parsing mirrored profile auth file
+    const profileAuth = JSON.parse(await fs.readFile(path.join(process.env.USERPROFILE ?? "", ".codex", "profiles", "switch-example-com-chatgpt.json"), "utf8")) as { tokens: { id_token: string } };
+    expect(emailFromJwt(profileAuth.tokens.id_token)).toBe("switch@example.com");
+    // SAFETY: parsing mirrored profiles index file
+    const index = JSON.parse(await fs.readFile(path.join(process.env.USERPROFILE ?? "", ".codex", "profiles.json"), "utf8")) as { profiles: Array<{ email?: string }> };
+    expect(index.profiles.some((profile) => profile.email === "switch@example.com")).toBe(true);
+  });
  it("preserves shared Codex projects when switching profiles", async () => {
  const processManager = { isRunning: vi.fn(), close: vi.fn(async () => undefined), launch: vi.fn(async () => undefined) };
  const store = makeStore(makeUsageService(), processManager);
@@ -395,182 +397,186 @@ describe("ProfileStore settings and import/export", () => {
  await expect(store.exportProfilesTo(exportPath)).rejects.toThrow(/passphrase is required/i);
  await expect(store.exportProfilesTo(exportPath, "   ")).rejects.toThrow(/passphrase is required/i);
  });
- it("exports encrypted JSON with profile metadata and imports it back", async () => {
- const store = makeStore();
- await store.initialize();
- await writeProfile(tempRoot, "p1", "Exported", "export@example.com");
- const exportPath = path.join(tempRoot, "exports", "accounts.json");
- const passphrase = "test-export-pass-phrase";
- const exported = await store.exportProfilesTo(exportPath, passphrase);
- const onDisk = JSON.parse(await fs.readFile(exportPath, "utf8")) as Record<string, unknown>;
- expect(exported.count).toBe(1);
- // Must be sealed (not plaintext profile dump)
- expect(onDisk).toHaveProperty("cmSecure");
- expect(onDisk).toHaveProperty("data");
- expect(onDisk).not.toHaveProperty("exportedBy");
- expect(onDisk).not.toHaveProperty("profiles");
- const importRoot = path.join(tempRoot, "imported-store");
- const importedStore = new ProfileStore(importRoot, { isRunning: vi.fn(), close: vi.fn(), launch: vi.fn() }, makeUsageService() as never);
- await importedStore.initialize();
- const importResult = await importedStore.importProfilesFrom(exportPath, passphrase);
- expect(importResult.count).toBe(1);
- // All imported profiles are READY \u2014 none set as active
- const state = await importedStore.getState();
- expect(state.profiles[0]).toEqual(expect.objectContaining({ name: "Exported", email: "export@example.com" }));
- expect(state.profiles[0].isActive).toBe(false);
- });
- it("previewImportFrom returns profile list without writing", async () => {
- const store = makeStore();
- await store.initialize();
- await writeProfile(tempRoot, "p1", "Alice", "alice@example.com");
- await writeProfile(tempRoot, "p2", "Bob", undefined);
- const exportPath = path.join(tempRoot, "exports", "preview-test.json");
- const passphrase = "preview-pass";
- await store.exportProfilesTo(exportPath, passphrase);
- // Encrypted without passphrase \u2192 UI should prompt
- const locked = await store.previewImportFrom(exportPath);
- expect(locked.encrypted).toBe(true);
- expect(locked.profiles).toEqual([]);
- // With passphrase \u2192 names/emails without modifying store
- const preview = await store.previewImportFrom(exportPath, passphrase);
- expect(preview.profiles.map((p) => p.name)).toEqual(expect.arrayContaining(["Alice", "Bob"]));
- expect(preview.profiles.find((p) => p.name === "Alice")?.email).toBe("alice@example.com");
- expect(preview.profiles.find((p) => p.name === "Bob")?.email).toBeUndefined();
- });
- it("previewImportFrom throws user-friendly error for non-relay files", async () => {
- const store = makeStore();
- await store.initialize();
- const wrongPath = path.join(tempRoot, "wrong.json");
- await fs.writeFile(wrongPath, JSON.stringify({ exportedBy: "something-else", profiles: [] }), "utf8");
- await expect(store.previewImportFrom(wrongPath)).rejects.toThrow("This file doesn't look like a Relay export.");
- });
- it("rejects malformed import JSON without crashing", async () => {
- const store = makeStore();
- await store.initialize();
- const badPath = path.join(tempRoot, "bad.json");
- await fs.writeFile(badPath, "{bad", "utf8");
- await expect(store.importProfilesFrom(badPath)).rejects.toThrow();
- });
+  it("exports encrypted JSON with profile metadata and imports it back", async () => {
+    const store = makeStore();
+    await store.initialize();
+    await writeProfile(tempRoot, "p1", "Exported", "export@example.com");
+    const exportPath = path.join(tempRoot, "exports", "accounts.json");
+    const passphrase = "test-export-pass-phrase";
+    const exported = await store.exportProfilesTo(exportPath, passphrase);
+    // SAFETY: reading onDisk JSON envelope from exportPath
+    const onDisk = JSON.parse(await fs.readFile(exportPath, "utf8")) as { cmSecure?: number; data?: string; exportedBy?: string; profiles?: unknown[] };
+    expect(exported.count).toBe(1);
+    // Must be sealed (not plaintext profile dump)
+    expect(onDisk).toHaveProperty("cmSecure");
+    expect(onDisk).toHaveProperty("data");
+    expect(onDisk).not.toHaveProperty("exportedBy");
+    expect(onDisk).not.toHaveProperty("profiles");
+    const importRoot = path.join(tempRoot, "imported-store");
+    // SAFETY: mocking usage service for imported store
+    const importedStore = new ProfileStore(importRoot, { isRunning: vi.fn(), close: vi.fn(), launch: vi.fn() }, makeUsageService() as never);
+    await importedStore.initialize();
+    const importResult = await importedStore.importProfilesFrom(exportPath, passphrase);
+    expect(importResult.count).toBe(1);
+    // All imported profiles are READY — none set as active
+    const state = await importedStore.getState();
+    expect(state.profiles[0]).toEqual(expect.objectContaining({ name: "Exported", email: "export@example.com" }));
+    expect(state.profiles[0].isActive).toBe(false);
+  });
+  it("previewImportFrom returns profile list without writing", async () => {
+    const store = makeStore();
+    await store.initialize();
+    await writeProfile(tempRoot, "p1", "Alice", "alice@example.com");
+    await writeProfile(tempRoot, "p2", "Bob", undefined);
+    const exportPath = path.join(tempRoot, "exports", "preview-test.json");
+    const passphrase = "preview-pass";
+    await store.exportProfilesTo(exportPath, passphrase);
+    // Encrypted without passphrase → UI should prompt
+    const locked = await store.previewImportFrom(exportPath);
+    expect(locked.encrypted).toBe(true);
+    expect(locked.profiles).toEqual([]);
+    // With passphrase → names/emails without modifying store
+    const preview = await store.previewImportFrom(exportPath, passphrase);
+    expect(preview.profiles.map((p) => p.name)).toEqual(expect.arrayContaining(["Alice", "Bob"]));
+    expect(preview.profiles.find((p) => p.name === "Alice")?.email).toBe("alice@example.com");
+    expect(preview.profiles.find((p) => p.name === "Bob")?.email).toBeUndefined();
+  });
+  it("previewImportFrom throws user-friendly error for non-relay files", async () => {
+    const store = makeStore();
+    await store.initialize();
+    const wrongPath = path.join(tempRoot, "wrong.json");
+    await fs.writeFile(wrongPath, JSON.stringify({ exportedBy: "something-else", profiles: [] }), "utf8");
+    await expect(store.previewImportFrom(wrongPath)).rejects.toThrow("This file doesn't look like a Relay export.");
+  });
+  it("rejects malformed import JSON without crashing", async () => {
+    const store = makeStore();
+    await store.initialize();
+    const badPath = path.join(tempRoot, "bad.json");
+    await fs.writeFile(badPath, "{bad", "utf8");
+    await expect(store.importProfilesFrom(badPath)).rejects.toThrow();
+  });
 });
 function makeStore(
- usageService = makeUsageService(),
- processManager = { isRunning: vi.fn(), close: vi.fn(), launch: vi.fn() }
+  usageService = makeUsageService(),
+  processManager = { isRunning: vi.fn(), close: vi.fn(), launch: vi.fn() }
 ): ProfileStore {
- return new ProfileStore(
- tempRoot,
- processManager,
- usageService as never
- );
+  return new ProfileStore(
+    tempRoot,
+    processManager,
+    // SAFETY: mocking usage service for makeStore
+    usageService as never
+  );
 }
 function makeUsageService(
- liveUsage: UsageSnapshot = { status: "available" },
- storedUsage: UsageSnapshot = { status: "available" }
+  liveUsage: UsageSnapshot = { status: "available" },
+  storedUsage: UsageSnapshot = { status: "available" }
 ) {
- return {
- refreshForAuthPath: vi.fn(async () => liveUsage),
- refreshForProfile: vi.fn(async () => storedUsage),
- deriveAvailability: vi.fn((usage: UsageSnapshot) => usage.status === "available" ? "available" : "unavailable")
- };
+  return {
+    refreshForAuthPath: vi.fn(async () => liveUsage),
+    refreshForProfile: vi.fn(async () => storedUsage),
+    deriveAvailability: vi.fn((usage: UsageSnapshot) => usage.status === "available" ? "available" : "unavailable")
+  };
 }
 async function writeProfile(
- root: string,
- id: string,
- name: string,
- email?: string,
- options: { writeAuth?: boolean; appFiles?: Record<string, string>; usage?: UsageSnapshot } = {}
-): Promise<void> {
- const profileRoot = path.join(root, "profiles", id);
- await fs.mkdir(path.join(profileRoot, "codex-agent"), { recursive: true });
- await fs.mkdir(path.join(profileRoot, "codex-app"), { recursive: true });
- const manifest: ProfileManifest = {
- id,
- name,
- email,
- createdAt: new Date().toISOString(),
- updatedAt: new Date().toISOString()
- };
- if (options.usage) {
- manifest.usage = options.usage;
- }
- await fs.writeFile(path.join(profileRoot, "manifest.json"), JSON.stringify(manifest), "utf8");
- if (options.writeAuth !== false) {
- await fs.writeFile(path.join(profileRoot, "codex-agent", "auth.json"), JSON.stringify(authJson(email ?? "unknown@example.com")), "utf8");
- }
- for (const [relativePath, content] of Object.entries(options.appFiles ?? {})) {
- const target = path.join(profileRoot, "codex-app", relativePath);
- await fs.mkdir(path.dirname(target), { recursive: true });
- await fs.writeFile(target, content, "utf8");
- }
+  root: string,
+  id: string,
+  name: string,
+  email?: string,
+  options: { writeAuth?: boolean; appFiles?: Record<string, string>; usage?: UsageSnapshot } = {}
+) {
+  const profileRoot = path.join(root, "profiles", id);
+  await fs.mkdir(profileRoot, { recursive: true });
+  await fs.writeFile(path.join(profileRoot, "manifest.json"), JSON.stringify({
+    id,
+    name,
+    email,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    usage: options.usage
+  }), "utf8");
+  if (options.writeAuth !== false) {
+    await fs.mkdir(path.join(profileRoot, "codex-agent"), { recursive: true });
+    await fs.writeFile(path.join(profileRoot, "codex-agent", "auth.json"), JSON.stringify(authJson(email ?? "user@example.com")), "utf8");
+  }
+  for (const [relativePath, content] of Object.entries(options.appFiles ?? {})) {
+    const target = path.join(profileRoot, "codex-app", relativePath);
+    await fs.mkdir(path.dirname(target), { recursive: true });
+    await fs.writeFile(target, content, "utf8");
+  }
 }
 async function readManifest(root: string, id: string): Promise<ProfileManifest> {
- return JSON.parse(await fs.readFile(path.join(root, "profiles", id, "manifest.json"), "utf8")) as ProfileManifest;
+  // SAFETY: reading manifest file as ProfileManifest
+  return JSON.parse(await fs.readFile(path.join(root, "profiles", id, "manifest.json"), "utf8")) as ProfileManifest;
 }
-async function writeSettings(root: string, settings: Record<string, unknown>): Promise<void> {
- await fs.writeFile(path.join(root, "settings.json"), JSON.stringify(settings), "utf8");
+async function writeSettings(root: string, settings: Partial<AppSettings>): Promise<void> {
+  await fs.writeFile(path.join(root, "settings.json"), JSON.stringify(settings), "utf8");
 }
 async function writePendingCapture(root: string, captureId: string, email: string): Promise<void> {
- const pendingRoot = path.join(root, "pending", captureId);
- await fs.mkdir(path.join(pendingRoot, "codex-agent"), { recursive: true });
- await fs.writeFile(path.join(pendingRoot, "codex-agent", "auth.json"), JSON.stringify(authJson(email)), "utf8");
- await fs.writeFile(path.join(pendingRoot, "capture.json"), JSON.stringify({
- captureId,
- accountEmail: email,
- suggestedName: email,
- createdAt: new Date().toISOString()
- }), "utf8");
+  const pendingRoot = path.join(root, "pending", captureId);
+  await fs.mkdir(path.join(pendingRoot, "codex-agent"), { recursive: true });
+  await fs.writeFile(path.join(pendingRoot, "codex-agent", "auth.json"), JSON.stringify(authJson(email)), "utf8");
+  await fs.writeFile(path.join(pendingRoot, "capture.json"), JSON.stringify({
+    captureId,
+    accountEmail: email,
+    suggestedName: email,
+    createdAt: new Date().toISOString()
+  }), "utf8");
 }
 async function writeCodexExecutable(): Promise<void> {
- const executablePath = path.join(process.env.LOCALAPPDATA ?? "", "OpenAI", "Codex", "bin", "test-build", "codex.exe");
- await fs.mkdir(path.dirname(executablePath), { recursive: true });
- await fs.writeFile(executablePath, "", "utf8");
+  const executablePath = path.join(process.env.LOCALAPPDATA ?? "", "OpenAI", "Codex", "bin", "test-build", "codex.exe");
+  await fs.mkdir(path.dirname(executablePath), { recursive: true });
+  await fs.writeFile(executablePath, "", "utf8");
 }
 async function writeLiveAuth(email: string): Promise<void> {
- await fs.writeFile(path.join(process.env.USERPROFILE ?? "", ".codex", "auth.json"), JSON.stringify(authJson(email)), "utf8");
+  await fs.writeFile(path.join(process.env.USERPROFILE ?? "", ".codex", "auth.json"), JSON.stringify(authJson(email)), "utf8");
 }
-async function writeLiveGlobalState(state: Record<string, unknown>): Promise<void> {
- await fs.writeFile(path.join(process.env.USERPROFILE ?? "", ".codex", ".codex-global-state.json"), JSON.stringify(state), "utf8");
+async function writeLiveGlobalState(state: CodexGlobalState): Promise<void> {
+  await fs.writeFile(path.join(process.env.USERPROFILE ?? "", ".codex", ".codex-global-state.json"), JSON.stringify(state), "utf8");
 }
 async function writeLiveConfig(config: string): Promise<void> {
- await fs.writeFile(path.join(process.env.USERPROFILE ?? "", ".codex", "config.toml"), config.trimStart(), "utf8");
+  await fs.writeFile(path.join(process.env.USERPROFILE ?? "", ".codex", "config.toml"), config.trimStart(), "utf8");
 }
 async function readLiveConfig(): Promise<string> {
- return fs.readFile(path.join(process.env.USERPROFILE ?? "", ".codex", "config.toml"), "utf8");
+  return fs.readFile(path.join(process.env.USERPROFILE ?? "", ".codex", "config.toml"), "utf8");
 }
-async function readLiveGlobalState(): Promise<Record<string, unknown>> {
- return JSON.parse(await fs.readFile(path.join(process.env.USERPROFILE ?? "", ".codex", ".codex-global-state.json"), "utf8")) as Record<string, unknown>;
+async function readLiveGlobalState(): Promise<CodexGlobalState> {
+  // SAFETY: parsing live global state as CodexGlobalState
+  return JSON.parse(await fs.readFile(path.join(process.env.USERPROFILE ?? "", ".codex", ".codex-global-state.json"), "utf8")) as CodexGlobalState;
 }
-async function writeStoredGlobalState(root: string, id: string, state: Record<string, unknown>): Promise<void> {
- await fs.writeFile(path.join(root, "profiles", id, "codex-agent", ".codex-global-state.json"), JSON.stringify(state), "utf8");
+async function writeStoredGlobalState(root: string, id: string, state: CodexGlobalState): Promise<void> {
+  await fs.writeFile(path.join(root, "profiles", id, "codex-agent", ".codex-global-state.json"), JSON.stringify(state), "utf8");
 }
 async function writeStoredConfig(root: string, id: string, config: string): Promise<void> {
- await fs.writeFile(path.join(root, "profiles", id, "codex-agent", "config.toml"), config.trimStart(), "utf8");
+  await fs.writeFile(path.join(root, "profiles", id, "codex-agent", "config.toml"), config.trimStart(), "utf8");
 }
 async function readStoredConfig(root: string, id: string): Promise<string> {
- return fs.readFile(path.join(root, "profiles", id, "codex-agent", "config.toml"), "utf8");
+  return fs.readFile(path.join(root, "profiles", id, "codex-agent", "config.toml"), "utf8");
 }
-async function readStoredGlobalState(root: string, id: string): Promise<Record<string, unknown>> {
- return JSON.parse(await fs.readFile(path.join(root, "profiles", id, "codex-agent", ".codex-global-state.json"), "utf8")) as Record<string, unknown>;
+async function readStoredGlobalState(root: string, id: string): Promise<CodexGlobalState> {
+  // SAFETY: parsing stored global state as CodexGlobalState
+  return JSON.parse(await fs.readFile(path.join(root, "profiles", id, "codex-agent", ".codex-global-state.json"), "utf8")) as CodexGlobalState;
 }
 function authJson(email: string) {
- return { tokens: { id_token: jwtWithEmail(email), account_id: "acct_test" } };
+  return { tokens: { id_token: jwtWithEmail(email), account_id: "acct_test" } };
 }
 function usagePercent(percent: number): UsageSnapshot {
- return {
- status: "available",
- weekly: { remaining: percent, limit: 100 },
- pools: [{ id: "codex-weekly", label: "Weekly", status: percent <= 0 ? "exhausted" : "available", remaining: percent, limit: 100 }]
- };
+  return {
+    status: "available",
+    weekly: { remaining: percent, limit: 100 },
+    pools: [{ id: "codex-weekly", label: "Weekly", status: percent <= 0 ? "exhausted" : "available", remaining: percent, limit: 100 }]
+  };
 }
 function jwtWithEmail(email: string): string {
- return `${base64Url({ alg: "none" })}.${base64Url({ email })}.signature`;
+  return `${base64Url({ alg: "none" })}.${base64Url({ email })}.signature`;
 }
-function base64Url(value: unknown): string {
- return Buffer.from(JSON.stringify(value), "utf8").toString("base64url");
+function base64Url(value: { alg: string } | { email: string }): string {
+  return Buffer.from(JSON.stringify(value), "utf8").toString("base64url");
 }
 function emailFromJwt(token: string): string | undefined {
- const [, payload] = token.split(".");
- if (!payload) {
- return undefined;
- }
- return (JSON.parse(Buffer.from(payload, "base64url").toString("utf8")) as { email?: string }).email;
+  const [, payload] = token.split(".");
+  if (!payload) {
+    return undefined;
+  }
+  // SAFETY: parsing JWT payload to extract email
+  return (JSON.parse(Buffer.from(payload, "base64url").toString("utf8")) as { email?: string }).email;
 }

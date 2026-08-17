@@ -21,6 +21,11 @@ const defaultSettings: AppSettings = {
   availabilityByProfile: {}
 };
 
+interface RawSettingsFile extends Partial<AppSettings> {
+  activeProfileByApp?: { codex?: string };
+  executablePaths?: { codex?: string };
+}
+
 export class SettingsStore {
   constructor(private readonly storageRoot: string) {}
 
@@ -31,10 +36,8 @@ export class SettingsStore {
   async read(): Promise<AppSettings> {
     try {
       const raw = await fs.readFile(this.settingsPath, "utf8");
-      const parsed = JSON.parse(raw) as Partial<AppSettings> & {
-        activeProfileByApp?: { codex?: string };
-        executablePaths?: { codex?: string };
-      };
+      // SAFETY: JSON parsed from settings file is merged with default values to ensure complete AppSettings contract
+      const parsed = JSON.parse(raw) as RawSettingsFile;
       return {
         activeProfileId: parsed.activeProfileId ?? parsed.activeProfileByApp?.codex,
         executablePath: parsed.executablePath ?? parsed.executablePaths?.codex,
@@ -73,41 +76,43 @@ export class SettingsStore {
   }
 }
 
-export function normalizeThreshold(value: unknown): number {
-  const number = typeof value === "number" && Number.isFinite(value) ? value : defaultSettings.autoSwitchThresholdPercent;
+export function normalizeThreshold(value?: number | null): number {
+  const number = Number.isFinite(value) ? (value ?? defaultSettings.autoSwitchThresholdPercent) : defaultSettings.autoSwitchThresholdPercent;
   return Math.max(1, Math.min(95, Math.round(number)));
 }
 
-export function normalizePollingInterval(value: unknown): number {
-  const number = typeof value === "number" && Number.isFinite(value) ? value : defaultSettings.pollingIntervalMinutes;
+export function normalizePollingInterval(value?: number | null): number {
+  const number = Number.isFinite(value) ? (value ?? defaultSettings.pollingIntervalMinutes) : defaultSettings.pollingIntervalMinutes;
   return Math.max(15, Math.min(30, Math.round(number)));
 }
 
-export function normalizeSyncInterval(value: unknown): number {
-  const number = typeof value === "number" && Number.isFinite(value) ? value : defaultSettings.syncIntervalMinutes;
+export function normalizeSyncInterval(value?: number | null): number {
+  const number = Number.isFinite(value) ? (value ?? defaultSettings.syncIntervalMinutes) : defaultSettings.syncIntervalMinutes;
   return Math.max(1, Math.min(30, Math.round(number)));
 }
 
-export function normalizeLowQuotaThreshold(value: unknown): number {
-  const number = typeof value === "number" && Number.isFinite(value) ? value : defaultSettings.lowQuotaThresholdPercent;
+export function normalizeLowQuotaThreshold(value?: number | null): number {
+  const number = Number.isFinite(value) ? (value ?? defaultSettings.lowQuotaThresholdPercent) : defaultSettings.lowQuotaThresholdPercent;
   return Math.max(1, Math.min(95, Math.round(number)));
 }
 
-function normalizeTheme(value: unknown): AppSettings["theme"] {
+function normalizeTheme(value?: string | null): AppSettings["theme"] {
   if (value === "light" || value === "dark" || value === "system") {
     return value;
   }
   return defaultSettings.theme;
 }
 
-function normalizeLanguage(value: unknown): string {
-  return typeof value === "string" && value.trim() ? value.trim().slice(0, 32) : defaultSettings.language;
+function normalizeLanguage(value?: string | null): string {
+  return value && value.trim() ? value.trim().slice(0, 32) : defaultSettings.language;
 }
 
-function normalizeProxyUrl(value: unknown): string {
-  return typeof value === "string" ? value.trim() : defaultSettings.proxyUrl ?? "";
+function normalizeProxyUrl(value?: string | null): string {
+  return value ? value.trim() : (defaultSettings.proxyUrl ?? "");
 }
 
-function normalizeBoolean(value: unknown, fallback: boolean): boolean {
-  return typeof value === "boolean" ? value : fallback;
+function normalizeBoolean(value: boolean | undefined | null, fallback: boolean): boolean {
+  if (value === true) return true;
+  if (value === false) return false;
+  return fallback;
 }

@@ -15,7 +15,8 @@ describe("CodexLoginCaptureService", () => {
 
   it("starts PKCE login, accepts callback, exchanges code, and returns auth.json", async () => {
     const openExternal = vi.fn(async () => undefined);
-    const fetchImpl = vi.fn(async (_url: string, init?: RequestInit) => {
+    // SAFETY: mock fetch implementation returns token response payload
+    const fetchImpl: typeof fetch = vi.fn(async (_url: string | URL | Request, init?: RequestInit) => {
       const bodyText = String(init?.body ?? "");
       expect(bodyText).toContain("grant_type=authorization_code");
       expect(bodyText).toContain("code=oauth-code-123");
@@ -30,7 +31,7 @@ describe("CodexLoginCaptureService", () => {
           }
         })
       });
-    }) as unknown as typeof fetch;
+    });
 
     const service = new CodexLoginCaptureService({
       openExternal,
@@ -65,9 +66,11 @@ describe("CodexLoginCaptureService", () => {
   });
 
   it("cancels in-progress login sessions", async () => {
+    // SAFETY: mock fetch implementation for canceled capture test
+    const fetchImpl: typeof fetch = vi.fn();
     const service = new CodexLoginCaptureService({
       openExternal: async () => undefined,
-      fetchImpl: vi.fn() as unknown as typeof fetch,
+      fetchImpl,
       timeoutMs: 4000
     });
 
@@ -80,7 +83,8 @@ describe("CodexLoginCaptureService", () => {
   });
 
   it("ignores a stale-state redirect and keeps the session alive for the correct callback", async () => {
-    const fetchImpl = vi.fn(async () =>
+    // SAFETY: mock fetch implementation returns token response payload
+    const fetchImpl: typeof fetch = vi.fn(async () =>
       Response.json({
         access_token: "tok-a",
         refresh_token: "ref-a",
@@ -89,7 +93,7 @@ describe("CodexLoginCaptureService", () => {
           "https://api.openai.com/auth": { chatgpt_account_id: "acct_2" }
         })
       })
-    ) as unknown as typeof fetch;
+    );
 
     const service = new CodexLoginCaptureService({
       openExternal: async () => undefined,
@@ -119,8 +123,15 @@ describe("CodexLoginCaptureService", () => {
   });
 });
 
-function makeJwt(payload: Record<string, unknown>): string {
+interface JwtPayloadTest {
+  email?: string;
+  "https://api.openai.com/auth"?: {
+    chatgpt_account_id?: string;
+  };
+}
+
+function makeJwt(payload: JwtPayloadTest): string {
   const header = { alg: "none", typ: "JWT" };
-  const encode = (value: unknown) => Buffer.from(JSON.stringify(value), "utf8").toString("base64url");
+  const encode = (data: { alg: string; typ: string } | JwtPayloadTest) => Buffer.from(JSON.stringify(data), "utf8").toString("base64url");
   return `${encode(header)}.${encode(payload)}.x`;
 }

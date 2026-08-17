@@ -63,7 +63,7 @@ export class ActiveProfileSyncer {
   private schedule(delayMs: number): void {
     this.timer = setTimeout(async () => {
       this.timer = undefined;
-      await this.syncOnce().catch((error: unknown) => {
+      await this.syncOnce().catch((error: Error | string | null | undefined) => {
         console.error("Auto sync failed", error);
       });
 

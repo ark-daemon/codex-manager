@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Download, Import, Plus, RefreshCw, Search, Trash2, Upload } from "lucide-react";
+import { Download, Import, Plus, RefreshCw, Trash2, Upload } from "lucide-react";
 import { AppState, ProfileSummary } from "../shared/types";
 import { copyForLanguage, formatMessage } from "../i18n";
 import { buildStats, getAccountPlan, getUniquePlans } from "../ui-utils";

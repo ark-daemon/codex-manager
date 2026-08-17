@@ -75,11 +75,6 @@ function getTrayIcon(): Electron.NativeImage {
 }
 
 const appIconPath = getAppIconPath();
-const notificationIconPath = process.platform === "win32"
-  ? (fs.existsSync(path.join(__dirname, "..", "assets", "notification-icon.png"))
-      ? path.join(__dirname, "..", "assets", "notification-icon.png")
-      : appIconPath)
-  : appIconPath;
 
 let mainWindow: BrowserWindow | undefined;
 let profileStore: ProfileStore;
@@ -99,7 +94,7 @@ Menu.setApplicationMenu(null);
  *
  * Legitimate messages come only from the app's own renderer, which is served
  * either from a file:// URL (packaged) or the Vite dev server (development).
- * Anything else \u2014 a remote origin, an unexpected frame \u2014 is rejected before it
+ * Anything else — a remote origin, an unexpected frame — is rejected before it
  * can reach any privileged handler. This is defense-in-depth: combined with
  * the navigation/window-open guards, it means a renderer-side bug or injected
  * string cannot pivot to the profile/credential IPC surface.
@@ -118,7 +113,7 @@ function isTrustedSender(url: string | undefined): boolean {
 /** ipcMain.handle wrapper that drops calls from untrusted sender frames. */
 function safeHandle(
   channel: string,
-  listener: (event: IpcMainInvokeEvent, ...args: any[]) => unknown
+  listener: (event: IpcMainInvokeEvent, ...args: any[]) => Promise<any> | any
 ): void {
   ipcMain.handle(channel, (event, ...args) => {
     if (!isTrustedSender(event.senderFrame?.url)) {
@@ -550,9 +545,12 @@ app.whenReady().then(async () => {
   await applyProxySettings(initialState.settings);
   // Apply the saved colour scheme before creating the window so the OS titlebar
   // gets the correct light/dark treatment immediately.
-  const initialTheme = initialState.settings.theme === "system"
+  const savedTheme = initialState.settings.theme;
+  const initialTheme: "light" | "dark" = savedTheme === "system"
     ? (nativeTheme.shouldUseDarkColors ? "dark" : "light")
-    : (initialState.settings.theme as "light" | "dark" ?? "dark");
+    : savedTheme === "light"
+    ? "light"
+    : "dark";
   applyNativeTheme(initialTheme);
 
   const notifications = new NotificationService(() => mainWindow, switchFromNotification, appIconPath);

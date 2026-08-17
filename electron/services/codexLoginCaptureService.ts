@@ -40,7 +40,7 @@ interface ActiveSession {
   server: http.Server;
   settled: boolean;
   resolve: (value: CodexLoginCapture) => void;
-  reject: (reason?: unknown) => void;
+  reject: (reason?: Error | string) => void;
   promise: Promise<CodexLoginCapture>;
 }
 
@@ -257,7 +257,7 @@ export class CodexLoginCaptureService {
       const capture = parseCaptureFromTokenResponse(tokenResponse, this.now());
       this.finishSession(session.captureId, capture);
     } catch (exchangeError) {
-      this.finishSession(session.captureId, exchangeError);
+      this.finishSession(session.captureId, exchangeError instanceof Error ? exchangeError : new Error(String(exchangeError)));
     }
   }
 
@@ -283,6 +283,7 @@ export class CodexLoginCaptureService {
       throw new Error(`Token exchange failed with HTTP ${response.status}${details ? `: ${details}` : ""}`);
     }
 
+    // SAFETY: parsed OAuth token response JSON from OpenAI endpoint conforms to OAuthTokenResponse
     const payload = (await response.json()) as OAuthTokenResponse;
     if (!payload.access_token || !payload.refresh_token || !payload.id_token) {
       throw new Error("Token exchange did not return access_token, refresh_token, and id_token.");
@@ -299,7 +300,7 @@ export class CodexLoginCaptureService {
     return session;
   }
 
-  private finishSession(captureId: string, result: CodexLoginCapture | unknown): void {
+  private finishSession(captureId: string, result: CodexLoginCapture | Error): void {
     const session = this.activeSession;
     if (!session || session.captureId !== captureId || session.settled) {
       return;
@@ -312,7 +313,7 @@ export class CodexLoginCaptureService {
     if (result instanceof Error) {
       session.reject(result);
     } else {
-      session.resolve(result as CodexLoginCapture);
+      session.resolve(result);
     }
 
     this.activeSession = undefined;
@@ -343,11 +344,44 @@ function base64UrlNoPadding(buffer: Buffer): string {
   return buffer.toString("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
 }
 
+interface OAuthOrganization {
+  id?: string;
+  is_default?: boolean;
+}
+
+interface OpenAIAuthClaim {
+  email?: string;
+  picture?: string;
+  avatar_url?: string;
+  avatarUrl?: string;
+  account_id?: string;
+  accountId?: string;
+  chatgpt_account_id?: string;
+  chatgptAccountId?: string;
+  organizations?: OAuthOrganization[];
+}
+
+export interface OpenAITokenClaims {
+  email?: string;
+  picture?: string;
+  avatar_url?: string;
+  avatarUrl?: string;
+  image?: string;
+  photo_url?: string;
+  photoUrl?: string;
+  account_id?: string;
+  accountId?: string;
+  chatgpt_account_id?: string;
+  chatgptAccountId?: string;
+  "https://api.openai.com/auth"?: OpenAIAuthClaim;
+}
+
 function parseCaptureFromTokenResponse(response: OAuthTokenResponse, now: Date): CodexLoginCapture {
   const idToken = response.id_token ?? "";
   const accessToken = response.access_token ?? "";
   const refreshToken = response.refresh_token ?? "";
-  const claims = parseJwtPayload(idToken) ?? {};
+  // SAFETY: parseJwtPayload decodes JSON claims from JWT token payload matching OpenAITokenClaims structure
+  const claims = (parseJwtPayload(idToken) ?? {}) as OpenAITokenClaims;
   const email = readEmail(claims);
   const avatarUrl = readAvatar(claims);
   const accountId = response.account_id ?? readAccountId(claims);
@@ -363,8 +397,7 @@ function parseCaptureFromTokenResponse(response: OAuthTokenResponse, now: Date):
       refresh_token: refreshToken,
       account_id: accountId
     },
-    last_refresh: now.toISOString(),
-    account: email ? { email, avatar_url: avatarUrl } : undefined
+    last_refresh: now.toISOString()
   };
 
   return {
@@ -374,21 +407,21 @@ function parseCaptureFromTokenResponse(response: OAuthTokenResponse, now: Date):
   };
 }
 
-function readEmail(claims: Record<string, unknown>): string | undefined {
+function readEmail(claims: OpenAITokenClaims): string | undefined {
   const direct = claims.email;
-  if (typeof direct === "string" && direct.trim()) {
+  if (direct && direct.trim()) {
     return direct.trim().toLowerCase();
   }
 
   const authClaims = readAuthClaims(claims);
   const nested = authClaims?.email;
-  return typeof nested === "string" && nested.trim() ? nested.trim().toLowerCase() : undefined;
+  return nested && nested.trim() ? nested.trim().toLowerCase() : undefined;
 }
 
-function readAvatar(claims: Record<string, unknown>): string | undefined {
-  for (const key of ["picture", "avatar_url", "avatarUrl", "image", "photo_url", "photoUrl"]) {
-    const value = claims[key];
-    if (typeof value === "string" && /^https?:\/\//i.test(value)) {
+function readAvatar(claims: OpenAITokenClaims): string | undefined {
+  const candidates = [claims.picture, claims.avatar_url, claims.avatarUrl, claims.image, claims.photo_url, claims.photoUrl];
+  for (const value of candidates) {
+    if (value && /^https?:\/\//i.test(value)) {
       return value;
     }
   }
@@ -398,20 +431,19 @@ function readAvatar(claims: Record<string, unknown>): string | undefined {
     return undefined;
   }
 
-  for (const key of ["picture", "avatar_url", "avatarUrl", "image", "photo_url", "photoUrl"]) {
-    const value = authClaims[key];
-    if (typeof value === "string" && /^https?:\/\//i.test(value)) {
+  const nestedCandidates = [authClaims.picture, authClaims.avatar_url, authClaims.avatarUrl];
+  for (const value of nestedCandidates) {
+    if (value && /^https?:\/\//i.test(value)) {
       return value;
     }
   }
   return undefined;
 }
 
-function readAccountId(claims: Record<string, unknown>): string | undefined {
-  const directKeys = ["account_id", "accountId", "chatgpt_account_id", "chatgptAccountId"];
-  for (const key of directKeys) {
-    const value = claims[key];
-    if (typeof value === "string" && value.trim()) {
+function readAccountId(claims: OpenAITokenClaims): string | undefined {
+  const directCandidates = [claims.account_id, claims.accountId, claims.chatgpt_account_id, claims.chatgptAccountId];
+  for (const value of directCandidates) {
+    if (value && value.trim()) {
       return value.trim();
     }
   }
@@ -421,30 +453,22 @@ function readAccountId(claims: Record<string, unknown>): string | undefined {
     return undefined;
   }
 
-  for (const key of directKeys) {
-    const value = authClaims[key];
-    if (typeof value === "string" && value.trim()) {
+  const nestedCandidates = [authClaims.account_id, authClaims.accountId, authClaims.chatgpt_account_id, authClaims.chatgptAccountId];
+  for (const value of nestedCandidates) {
+    if (value && value.trim()) {
       return value.trim();
     }
   }
 
   const organizations = authClaims.organizations;
   if (Array.isArray(organizations)) {
-    for (const organization of organizations) {
-      if (!organization || typeof organization !== "object") {
-        continue;
-      }
-      const org = organization as Record<string, unknown>;
-      if (org.is_default === true && typeof org.id === "string" && org.id.trim()) {
+    for (const org of organizations) {
+      if (org && org.is_default === true && org.id && org.id.trim()) {
         return org.id.trim();
       }
     }
-    for (const organization of organizations) {
-      if (!organization || typeof organization !== "object") {
-        continue;
-      }
-      const org = organization as Record<string, unknown>;
-      if (typeof org.id === "string" && org.id.trim()) {
+    for (const org of organizations) {
+      if (org && org.id && org.id.trim()) {
         return org.id.trim();
       }
     }
@@ -453,7 +477,6 @@ function readAccountId(claims: Record<string, unknown>): string | undefined {
   return undefined;
 }
 
-function readAuthClaims(claims: Record<string, unknown>): Record<string, unknown> | undefined {
-  const value = claims["https://api.openai.com/auth"];
-  return value && typeof value === "object" ? value as Record<string, unknown> : undefined;
+function readAuthClaims(claims: OpenAITokenClaims): OpenAIAuthClaim | undefined {
+  return claims["https://api.openai.com/auth"];
 }

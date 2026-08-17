@@ -16,7 +16,7 @@
 
 import fs from "node:fs/promises";
 import path from "node:path";
-import { isSecureEnvelope, openJson, sealJson } from "./cryptoBox.js";
+import { isSecureEnvelope, openJson, RawSecureEnvelope, sealJson } from "./cryptoBox.js";
 
 /** Thrown when an encrypted bundle is opened without (or with a wrong) passphrase. */
 export class BundlePassphraseRequiredError extends Error {
@@ -30,7 +30,7 @@ export class BundlePassphraseRequiredError extends Error {
  * Write a bundle to disk sealed with AES-256-GCM.
  * A non-empty passphrase is required — exports never write auth material as plaintext.
  */
-export async function writeBundleFile(filePath: string, bundle: unknown, passphrase: string): Promise<void> {
+export async function writeBundleFile<T>(filePath: string, bundle: T, passphrase: string): Promise<void> {
   if (!passphrase || passphrase.trim().length === 0) {
     throw new Error("A passphrase is required to export accounts. Exports are always encrypted.");
   }
@@ -46,9 +46,10 @@ export async function writeBundleFile(filePath: string, bundle: unknown, passphr
  * - Encrypted, wrong passphrase -> throws (friendly message from cryptoBox).
  */
 export async function readBundleFile<T = unknown>(filePath: string, passphrase?: string): Promise<T> {
-  let raw: unknown;
+  let raw: RawSecureEnvelope;
   try {
-    raw = JSON.parse(await fs.readFile(filePath, "utf8"));
+    // SAFETY: parsing bundle file JSON as RawSecureEnvelope structure
+    raw = JSON.parse(await fs.readFile(filePath, "utf8")) as RawSecureEnvelope;
   } catch {
     throw new Error("Could not read the selected file. Make sure it is a valid JSON file.");
   }
@@ -60,13 +61,15 @@ export async function readBundleFile<T = unknown>(filePath: string, passphrase?:
     return openJson<T>(raw, passphrase);
   }
 
+  // SAFETY: unencrypted legacy bundle payload conforms to expected bundle structure T
   return raw as T;
 }
 
 /** True when the file on disk is an encrypted bundle (so the UI can prompt). */
 export async function isEncryptedBundleFile(filePath: string): Promise<boolean> {
   try {
-    const raw = JSON.parse(await fs.readFile(filePath, "utf8"));
+    // SAFETY: parsing bundle file JSON as RawSecureEnvelope to inspect envelope signature
+    const raw = JSON.parse(await fs.readFile(filePath, "utf8")) as RawSecureEnvelope;
     return isSecureEnvelope(raw);
   } catch {
     return false;

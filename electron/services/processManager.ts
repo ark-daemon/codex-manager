@@ -49,10 +49,12 @@ export class CrossPlatformProcessManager implements ProcessManager {
   }
 
   async launch(executablePath: string, definition?: AppDefinition): Promise<void> {
-    await fs.access(executablePath).catch((error: unknown) => {
+    try {
+      await fs.access(executablePath);
+    } catch (error) {
       const detail = error instanceof Error ? error.message : String(error);
       throw new Error(`Codex / ChatGPT executable is not accessible: ${executablePath}. ${detail}`);
-    });
+    }
 
     const appLabel = definition?.displayName ?? "Codex/ChatGPT";
     console.info(`[ProcessManager] launching ${appLabel} from: ${executablePath}${definition?.msixAumid ? ` (MSIX ${definition.msixAumid})` : ""}`);

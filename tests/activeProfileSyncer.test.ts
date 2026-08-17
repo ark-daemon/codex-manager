@@ -1,7 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
 import { ActiveProfileSyncer } from "../electron/services/activeProfileSyncer.js";
 
-function makeState(overrides: Record<string, unknown> = {}) {
+import type { AppSettings } from "../src/shared/types.js";
+
+function makeState(overrides: Partial<AppSettings> = {}) {
   return {
     profiles: [],
     defaultExecutablePath: "",
@@ -24,6 +26,7 @@ describe("ActiveProfileSyncer", () => {
     };
     const processManager = { isRunning: vi.fn(async () => true) };
     const onSynced = vi.fn();
+    // SAFETY: mocking ProfileStore and ProcessManager for test
     const syncer = new ActiveProfileSyncer(profileStore as never, processManager as never, onSynced);
 
     await expect(syncer.syncOnce()).resolves.toBe(true);
@@ -39,6 +42,7 @@ describe("ActiveProfileSyncer", () => {
       syncActiveProfileFromLive: vi.fn()
     };
     const processManager = { isRunning: vi.fn(async () => true) };
+    // SAFETY: mocking ProfileStore and ProcessManager for test
     const syncer = new ActiveProfileSyncer(profileStore as never, processManager as never);
 
     await expect(syncer.syncOnce()).resolves.toBe(false);
@@ -53,6 +57,7 @@ describe("ActiveProfileSyncer", () => {
       syncActiveProfileFromLive: vi.fn()
     };
     const processManager = { isRunning: vi.fn(async () => false) };
+    // SAFETY: mocking ProfileStore and ProcessManager for test
     const syncer = new ActiveProfileSyncer(profileStore as never, processManager as never);
 
     await expect(syncer.syncOnce()).resolves.toBe(false);

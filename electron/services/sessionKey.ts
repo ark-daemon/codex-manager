@@ -16,7 +16,7 @@
  * collide and readers can tell which key material a file needs.
  */
 
-import { isSecureEnvelope, openText, sealText, type SecureEnvelope } from "./cryptoBox.js";
+import { isSecureEnvelope, openText, RawSecureEnvelope, sealText } from "./cryptoBox.js";
 
 /** Magic prefix marking a passphrase-sealed (not keychain-sealed) auth file. */
 export const CMPWD_MAGIC = Buffer.from("CMPWD1:", "ascii");
@@ -47,7 +47,7 @@ export function clearSessionPassphrase(): void {
 
 /** True once the user has provided a passphrase this session. */
 export function hasSessionPassphrase(): boolean {
-  return typeof sessionPassphrase === "string" && sessionPassphrase.length > 0;
+  return Boolean(sessionPassphrase && sessionPassphrase.length > 0);
 }
 
 /**
@@ -55,10 +55,11 @@ export function hasSessionPassphrase(): boolean {
  * the current session passphrase. Throws PassphraseRequiredError if unset.
  */
 export async function sealWithSession(text: string): Promise<Buffer> {
-  if (!hasSessionPassphrase()) {
+  const passphrase = sessionPassphrase;
+  if (!passphrase) {
     throw new PassphraseRequiredError();
   }
-  const envelope = await sealText(text, sessionPassphrase as string);
+  const envelope = await sealText(text, passphrase);
   const json = Buffer.from(JSON.stringify(envelope), "utf8");
   return Buffer.concat([CMPWD_MAGIC, json]);
 }
@@ -77,17 +78,19 @@ export async function openWithSession(raw: Buffer): Promise<string> {
   if (!isPassphraseSealed(raw)) {
     throw new Error("File is not a passphrase-sealed Relay auth file.");
   }
-  if (!hasSessionPassphrase()) {
+  const passphrase = sessionPassphrase;
+  if (!passphrase) {
     throw new PassphraseRequiredError();
   }
-  let envelope: unknown;
+  let envelope: RawSecureEnvelope;
   try {
-    envelope = JSON.parse(raw.slice(CMPWD_MAGIC.length).toString("utf8"));
+    // SAFETY: parsing session passphrase payload as RawSecureEnvelope
+    envelope = JSON.parse(raw.slice(CMPWD_MAGIC.length).toString("utf8")) as RawSecureEnvelope;
   } catch {
     throw new Error("Passphrase-sealed auth file is corrupt.");
   }
   if (!isSecureEnvelope(envelope)) {
     throw new Error("Passphrase-sealed auth file has an invalid envelope.");
   }
-  return openText(envelope as SecureEnvelope, sessionPassphrase as string);
+  return openText(envelope, passphrase);
 }

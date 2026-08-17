@@ -23,6 +23,7 @@
 import crypto from "node:crypto";
 import { promisify } from "node:util";
 
+// SAFETY: promisify wraps crypto.scrypt to return Promise<Buffer> when called with keylen and options
 const scrypt = promisify(crypto.scrypt) as (
   password: crypto.BinaryLike,
   salt: crypto.BinaryLike,
@@ -48,19 +49,26 @@ export interface SecureEnvelope {
   data: string;
 }
 
+export interface RawSecureEnvelope {
+  cmSecure?: number;
+  kdf?: { algo?: string; N?: number; r?: number; p?: number; salt?: string };
+  cipher?: string;
+  iv?: string;
+  tag?: string;
+  data?: string;
+}
+
 /** Type guard: does this parsed JSON look like one of our encrypted envelopes? */
-export function isSecureEnvelope(value: unknown): value is SecureEnvelope {
-  if (!value || typeof value !== "object") {
+export function isSecureEnvelope(value?: RawSecureEnvelope | null): value is SecureEnvelope {
+  if (!value || !value.kdf) {
     return false;
   }
-  const v = value as Record<string, unknown>;
-  return v.cmSecure === 1
-    && v.cipher === "aes-256-gcm"
-    && typeof v.iv === "string"
-    && typeof v.tag === "string"
-    && typeof v.data === "string"
-    && Boolean(v.kdf)
-    && typeof v.kdf === "object";
+  return value.cmSecure === 1
+    && value.cipher === "aes-256-gcm"
+    && Boolean(value.iv && value.tag && value.data && value.kdf.salt)
+    && Number.isFinite(value.kdf.N)
+    && Number.isFinite(value.kdf.r)
+    && Number.isFinite(value.kdf.p);
 }
 
 async function deriveKey(passphrase: string, salt: Buffer, N = SCRYPT_N, r = SCRYPT_R, p = SCRYPT_P): Promise<Buffer> {
@@ -72,7 +80,7 @@ async function deriveKey(passphrase: string, salt: Buffer, N = SCRYPT_N, r = SCR
  * Encrypt an arbitrary JSON-serialisable value with a passphrase.
  * Returns a portable, self-describing envelope.
  */
-export async function sealJson(value: unknown, passphrase: string): Promise<SecureEnvelope> {
+export async function sealJson<T>(value: T, passphrase: string): Promise<SecureEnvelope> {
   if (!passphrase || passphrase.length === 0) {
     throw new Error("A passphrase is required to encrypt this data.");
   }
@@ -114,6 +122,7 @@ export async function openJson<T = unknown>(envelope: SecureEnvelope, passphrase
   decipher.setAuthTag(tag);
   try {
     const plaintext = Buffer.concat([decipher.update(data), decipher.final()]);
+    // SAFETY: parsed plaintext object is returned according to caller generic type T
     return JSON.parse(plaintext.toString("utf8")) as T;
   } catch {
     throw new Error("Could not decrypt: the passphrase is incorrect or the file has been modified.");
@@ -125,10 +134,14 @@ export async function sealText(text: string, passphrase: string): Promise<Secure
   return sealJson({ __text: text }, passphrase);
 }
 
+interface WrappedText {
+  __text?: string;
+}
+
 /** Decrypt an envelope produced by {@link sealText} back to the raw string. */
 export async function openText(envelope: SecureEnvelope, passphrase: string): Promise<string> {
-  const wrapped = await openJson<{ __text?: unknown }>(envelope, passphrase);
-  if (!wrapped || typeof wrapped.__text !== "string") {
+  const wrapped = await openJson<WrappedText>(envelope, passphrase);
+  if (!wrapped || !wrapped.__text) {
     throw new Error("Decrypted payload was not in the expected format.");
   }
   return wrapped.__text;

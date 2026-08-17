@@ -1,28 +1,37 @@
 import electron from "electron";
-
-const { powerMonitor } = electron;
 import { ProfileStore } from "./profileStore.js";
 import { NotificationService } from "./notifications.js";
+
+const { powerMonitor } = electron;
+
+export interface PowerMonitorLike {
+  on(event: "suspend" | "resume", listener: () => void): void;
+  off(event: "suspend" | "resume", listener: () => void): void;
+}
 
 export class UsagePoller {
   private timer: NodeJS.Timeout | undefined;
   private running = false;
   private suspended = false;
+  private readonly monitor: PowerMonitorLike;
 
   constructor(
     private readonly profileStore: ProfileStore,
     private readonly notifications: NotificationService,
     private readonly onStateChanged: () => Promise<void>,
-    private intervalMs = 20 * 60 * 1000
-  ) {}
+    private intervalMs = 20 * 60 * 1000,
+    monitor?: PowerMonitorLike
+  ) {
+    this.monitor = monitor ?? powerMonitor;
+  }
 
   start(): void {
     if (this.timer) {
       return;
     }
 
-    powerMonitor.on("suspend", this.handleSuspend);
-    powerMonitor.on("resume", this.handleResume);
+    this.monitor.on("suspend", this.handleSuspend);
+    this.monitor.on("resume", this.handleResume);
     this.schedule();
     void this.poll();
   }
@@ -32,8 +41,8 @@ export class UsagePoller {
       clearInterval(this.timer);
       this.timer = undefined;
     }
-    powerMonitor.off("suspend", this.handleSuspend);
-    powerMonitor.off("resume", this.handleResume);
+    this.monitor.off("suspend", this.handleSuspend);
+    this.monitor.off("resume", this.handleResume);
   }
 
   async poll(): Promise<void> {
@@ -43,7 +52,6 @@ export class UsagePoller {
 
     this.running = true;
     try {
-      const initialSettings = (await this.profileStore.getState()).settings;
       const transitions = await this.profileStore.refreshAllUsage();
       const settings = (await this.profileStore.getState()).settings;
       for (const transition of transitions) {

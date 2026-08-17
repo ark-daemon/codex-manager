@@ -1,15 +1,22 @@
 import { EventEmitter } from "node:events";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-
-const powerMonitor = new EventEmitter();
-vi.mock("electron", () => ({ powerMonitor, default: { powerMonitor } }));
-
-const { UsagePoller } = await import("../electron/services/usagePoller.js");
+import { PowerMonitorLike, UsagePoller } from "../electron/services/usagePoller.js";
 
 describe("UsagePoller", () => {
+  let powerMonitorEmitter: EventEmitter;
+  let powerMonitor: PowerMonitorLike;
+
   beforeEach(() => {
     vi.useFakeTimers();
-    powerMonitor.removeAllListeners();
+    powerMonitorEmitter = new EventEmitter();
+    powerMonitor = {
+      on: (event, listener) => {
+        powerMonitorEmitter.on(event, listener);
+      },
+      off: (event, listener) => {
+        powerMonitorEmitter.off(event, listener);
+      }
+    };
   });
 
   it("notifies only on at-limit to available transitions", async () => {
@@ -29,7 +36,8 @@ describe("UsagePoller", () => {
     };
     const notifications = { notifyAvailable: vi.fn() };
     const onStateChanged = vi.fn(async () => {});
-    const poller = new UsagePoller(profileStore as never, notifications as never, onStateChanged, 20 * 60 * 1000);
+    // SAFETY: mock ProfileStore and NotificationService for test
+    const poller = new UsagePoller(profileStore as never, notifications as never, onStateChanged, 20 * 60 * 1000, powerMonitor);
 
     await poller.poll();
 
@@ -46,7 +54,8 @@ describe("UsagePoller", () => {
     };
     const notifications = { notifyAvailable: vi.fn() };
     const onStateChanged = vi.fn(async () => {});
-    const poller = new UsagePoller(profileStore as never, notifications as never, onStateChanged);
+    // SAFETY: mock ProfileStore and NotificationService for test
+    const poller = new UsagePoller(profileStore as never, notifications as never, onStateChanged, 20 * 60 * 1000, powerMonitor);
 
     await poller.poll();
 
@@ -61,14 +70,15 @@ describe("UsagePoller", () => {
     };
     const notifications = { notifyAvailable: vi.fn() };
     const onStateChanged = vi.fn(async () => {});
-    const poller = new UsagePoller(profileStore as never, notifications as never, onStateChanged, 1000);
+    // SAFETY: mock ProfileStore and NotificationService for test
+    const poller = new UsagePoller(profileStore as never, notifications as never, onStateChanged, 1000, powerMonitor);
 
     poller.start();
-    powerMonitor.emit("suspend");
+    powerMonitorEmitter.emit("suspend");
     await vi.advanceTimersByTimeAsync(1000);
     expect(profileStore.refreshAllUsage).toHaveBeenCalledTimes(1);
 
-    powerMonitor.emit("resume");
+    powerMonitorEmitter.emit("resume");
     await vi.advanceTimersByTimeAsync(1000);
     expect(profileStore.refreshAllUsage).toHaveBeenCalledTimes(2);
 

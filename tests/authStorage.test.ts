@@ -13,11 +13,20 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-// \u2500\u2500\u2500 Minimal safeStorage mock \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+import {
+  PassphraseRequiredError,
+  migrateAuthFile,
+  readAuthFile,
+  setSafeStorageBackendForTest,
+  writeAuthFile
+} from "../electron/services/authStorage.js";
+import { clearSessionPassphrase, setSessionPassphrase } from "../electron/services/sessionKey.js";
+
+// ─── Minimal safeStorage mock ──────────────────────────────────────────
 
 /**
  * A trivial XOR cipher so we can verify round-trip without a real OS keychain.
- * The key byte (0x42) is arbitrary \u2014 just needs to be consistent.
+ * The key byte (0x42) is arbitrary — just needs to be consistent.
  */
 const KEY = 0x42;
 const encryptString = vi.fn((plaintext: string): Buffer => {
@@ -34,24 +43,14 @@ const decryptString = vi.fn((cipherBuf: Buffer): string => {
 let _encryptionAvailable = true;
 const isEncryptionAvailable = vi.fn(() => _encryptionAvailable);
 
-vi.mock("electron", () => {
-  const safeStorage = { isEncryptionAvailable, encryptString, decryptString };
-  return { safeStorage, default: { safeStorage } };
-});
-
-// Dynamic import AFTER the mock is in place.
-const { readAuthFile, writeAuthFile, migrateAuthFile, PassphraseRequiredError } = await import("../electron/services/authStorage.js");
-// sessionKey is a real module (no electron dependency) that holds the in-memory
-// session passphrase used for the no-keychain sealing path.
-const { setSessionPassphrase, clearSessionPassphrase } = await import("../electron/services/sessionKey.js");
-
-// \u2500\u2500\u2500 Helpers \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+// ─── Helpers ──────────────────────────────────────────────────────────
 
 let tmpDir = "";
 
 beforeEach(async () => {
   tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "auth-storage-test-"));
   _encryptionAvailable = true;
+  setSafeStorageBackendForTest({ isEncryptionAvailable, encryptString, decryptString });
   clearSessionPassphrase();
   vi.clearAllMocks();
   // Restore mock implementations that clearAllMocks may have cleared.

@@ -2,30 +2,39 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { EnvPaths, getEnvPaths } from "./paths.js";
 
-export interface CodexAuthJson {
-  auth_mode?: string;
-  tokens?: {
-    id_token?: string;
-    access_token?: string;
-    refresh_token?: string;
-    account_id?: string;
-  };
-  last_refresh?: string;
-  [key: string]: unknown;
+export interface CodexAuthTokens {
+  id_token?: string;
+  access_token?: string;
+  refresh_token?: string;
+  account_id?: string;
 }
 
-interface ProfilesIndexEntry {
+export interface CodexAccountInfo {
+  account_id?: string;
+  id?: string;
+  email?: string;
+  avatar_url?: string;
+}
+
+export interface CodexAuthJson {
+  auth_mode?: string;
+  tokens?: CodexAuthTokens;
+  account?: CodexAccountInfo;
+  last_refresh?: string;
+}
+
+export interface ProfilesIndexEntry {
   id: string;
   label: string;
   email?: string;
   file: string;
   updatedAt: string;
-  [key: string]: unknown;
 }
 
-interface ProfilesIndex {
+export interface ProfilesIndex {
   profiles: ProfilesIndexEntry[];
-  [key: string]: unknown;
+  version?: number | string;
+  activeProfileId?: string;
 }
 
 export async function mirrorCodexProfile(authJson: CodexAuthJson, label: string, email?: string, env: EnvPaths = getEnvPaths()): Promise<void> {
@@ -44,25 +53,25 @@ export async function mirrorCodexProfile(authJson: CodexAuthJson, label: string,
 
   // Preserve unknown fields on existing entries so Codex-native metadata (e.g.
   // active flags, avatar URLs, organisation IDs) is not wiped on every switch.
-  const existingProfiles = (index.profiles ?? []).filter((entry: Record<string, unknown>) =>
+  const existingProfiles = (index.profiles ?? []).filter((entry: ProfilesIndexEntry) =>
     entry.id !== id && entry.email !== email
   );
-  const oldEntry = (index.profiles ?? []).find((entry: Record<string, unknown>) =>
+  const oldEntry = (index.profiles ?? []).find((entry: ProfilesIndexEntry) =>
     entry.id === id || entry.email === email
   );
-  const mergedEntry: Record<string, unknown> = oldEntry
+  const mergedEntry: ProfilesIndexEntry = oldEntry
     ? { ...oldEntry, ...nextEntry, updatedAt: now }
     : nextEntry;
   const profiles = [...existingProfiles, mergedEntry].sort((left, right) => {
-    const a = typeof left.label === "string" ? left.label : "";
-    const b = typeof right.label === "string" ? right.label : "";
+    const a = left.label || "";
+    const b = right.label || "";
     return a.localeCompare(b);
   });
 
   // Remove orphaned .json files in profiles/ that are no longer referenced by
   // profiles.json so Codex does not see stale native-account files on restart.
-  const referencedFiles = new Set<string>(profiles.map((p: Record<string, unknown>) =>
-    typeof p.file === "string" ? p.file : ""
+  const referencedFiles = new Set<string>(profiles.map((p: ProfilesIndexEntry) =>
+    p.file || ""
   ).filter(Boolean));
   try {
     const entries = await fs.readdir(profilesRoot, { withFileTypes: true });
@@ -78,17 +87,17 @@ export async function mirrorCodexProfile(authJson: CodexAuthJson, label: string,
 
   // Preserve unknown top-level fields (e.g. version, activeProfileId) that newer
   // versions of Codex may have added to profiles.json.
-  const output: Record<string, unknown> = { ...index, profiles };
+  const output: ProfilesIndex = { ...index, profiles };
   await fs.writeFile(indexPath, `${JSON.stringify(output, null, 2)}\n`, "utf8");
 }
 
 async function readIndex(indexPath: string): Promise<ProfilesIndex> {
   try {
-    const parsed = JSON.parse(await fs.readFile(indexPath, "utf8")) as unknown;
-    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
-      const record = parsed as Record<string, unknown>;
-      const profiles = Array.isArray(record.profiles) ? record.profiles : [];
-      return { ...record, profiles } as ProfilesIndex;
+    const raw = await fs.readFile(indexPath, "utf8");
+    // SAFETY: JSON parsed from disk matches ProfilesIndex structure
+    const parsed = JSON.parse(raw) as ProfilesIndex;
+    if (parsed && Array.isArray(parsed.profiles)) {
+      return parsed;
     }
   } catch {
     // Missing or invalid profile indexes are rebuilt with the new entry.

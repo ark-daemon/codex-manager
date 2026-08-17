@@ -2,7 +2,14 @@ import crypto from "node:crypto";
 import fs from "node:fs/promises";
 import path from "node:path";
 import electron from "electron";
-const { safeStorage, shell } = electron;
+
+const { shell } = electron;
+
+let customOpenPath: ((targetPath: string) => Promise<string>) | undefined;
+
+export function setShellOpenPathForTest(fn?: (targetPath: string) => Promise<string>): void {
+  customOpenPath = fn;
+}
 import {
   AppSettings,
   AppState,
@@ -20,7 +27,7 @@ import {
   SwitchResult,
   UsageSnapshot
 } from "../../src/shared/types.js";
-import { emailFromJwt, findEmail, isEmail, parseJwtPayload, primaryPool, quotaPercent } from "../../src/shared/utils.js";
+import { findEmail, isEmail, parseJwtPayload, primaryPool, quotaPercent } from "../../src/shared/utils.js";
 import { CodexLoginCaptureService } from "./codexLoginCaptureService.js";
 import { CodexAuthJson, mirrorCodexProfile } from "./codexProfileMirror.js";
 import { copyManagedFromLive, copyManagedLiveToBackup, copyProfileToBackup, restoreManagedToLive } from "./filePlan.js";
@@ -29,7 +36,7 @@ import type { AppDefinition } from "./paths.js";
 import { ProcessManager } from "./processManager.js";
 import { normalizeLowQuotaThreshold, normalizePollingInterval, normalizeSyncInterval, normalizeThreshold, SettingsStore } from "./settingsStore.js";
 import { UsageService } from "./usageService.js";
-import { isEncryptionAvailable, migrateAuthFile, readAuthFile, writeAuthFile } from "./authStorage.js";
+import { decryptKeychainBuffer, isEncryptionAvailable, migrateAuthFile, readAuthFile, writeAuthFile } from "./authStorage.js";
 import { BundlePassphraseRequiredError, isEncryptedBundleFile, readBundleFile, writeBundleFile } from "./secureBundle.js";
 interface PendingCapture {
   captureId: string;
@@ -48,11 +55,34 @@ interface ExportedProfile {
   /** Serialised text content of codex-agent/auth.json, or null if missing. */
   authJson: string | null;
 }
+
 interface ExportBundle {
   exportedBy: "relay" | "codex-manager";
   version: "1.0";
   exportedAt: string;
   profiles: ExportedProfile[];
+}
+
+interface RawImportProfileEntry {
+  id?: string;
+  name?: string;
+  email?: string;
+  createdAt?: string;
+  updatedAt?: string;
+  isActive?: boolean;
+  authJson?: string | null;
+  manifest?: {
+    name?: string;
+    email?: string;
+    createdAt?: string;
+  };
+}
+
+interface RawExportBundle {
+  exportedBy?: string;
+  version?: string;
+  exportedAt?: string;
+  profiles?: RawImportProfileEntry[];
 }
 const SHARED_GLOBAL_STATE_ARRAY_KEYS = [
   "electron-saved-workspace-roots",
@@ -344,10 +374,12 @@ export class ProfileStore {
       );
       const profilePath = this.profilePath(input.profileId);
       await this.runSwitchStep("validating target profile folder", switchContext, async () => {
-        await fs.access(profilePath).catch((error: unknown) => {
+        try {
+          await fs.access(profilePath);
+        } catch (error) {
           const detail = error instanceof Error ? error.message : String(error);
           throw new Error(`Profile folder is not accessible: ${profilePath}. ${detail}`);
-        });
+        }
       });
       let targetAuthJson = await this.runSwitchStep("validating source profile auth", switchContext, () =>
         this.requireProfileAuthJson(input.profileId)
@@ -461,7 +493,7 @@ export class ProfileStore {
       // state-changed broadcast triggered by the refresh persisting to disk.
       void this.refreshCodexUsageFromLive(input).then(() => {
         console.info(`[Relay switch] background quota refresh complete for ${input.profileId}`);
-      }).catch((err: unknown) => {
+      }).catch((err: Error | string | null | undefined) => {
         console.warn(`[Relay switch] background quota refresh failed: ${err}`);
       });
       return { profile: profile ?? { ...manifest, isActive: true } };
@@ -740,75 +772,61 @@ export class ProfileStore {
    */
   async previewImportFrom(filePath: string, passphrase?: string): Promise<ProfileImportPreview> {
     const encrypted = await isEncryptedBundleFile(filePath);
-    let raw: unknown;
+    let bundle: RawExportBundle | undefined;
     try {
-      raw = await readBundleFile<unknown>(filePath, passphrase);
+      bundle = await readBundleFile<RawExportBundle>(filePath, passphrase);
     } catch (err) {
       if (err instanceof BundlePassphraseRequiredError) {
         return { path: filePath, profiles: [], encrypted: true };
       }
       throw err instanceof Error ? err : new Error("Could not read the selected file. Make sure it is a valid JSON file.");
     }
-    if (!raw || typeof raw !== "object") {
+    if (!bundle || (bundle.exportedBy !== "relay" && bundle.exportedBy !== "codex-manager") || !Array.isArray(bundle.profiles)) {
       throw new Error("This file doesn't look like a Relay export.");
     }
-    const bundle = raw as Record<string, unknown>;
-    if ((bundle["exportedBy"] !== "relay" && bundle["exportedBy"] !== "codex-manager") || !Array.isArray(bundle["profiles"])) {
-      throw new Error("This file doesn't look like a Relay export.");
-    }
-    const profiles = (bundle["profiles"] as unknown[]).flatMap((entry) => {
-      if (!entry || typeof entry !== "object") return [];
-      const e = entry as Record<string, unknown>;
-      const legacy = (e["manifest"] && typeof e["manifest"] === "object")
-        ? e["manifest"] as Record<string, unknown>
-        : null;
-      const name = String((e["name"] ?? legacy?.["name"]) || "Unnamed profile");
-      const email = typeof (e["email"] ?? legacy?.["email"]) === "string"
-        ? String(e["email"] ?? legacy?.["email"])
-        : undefined;
-      return [{ name, email }];
+    const profiles = bundle.profiles.flatMap((e) => {
+      if (!e) return [];
+      const legacy = e.manifest;
+      const name = String((e.name ?? legacy?.name) || "Unnamed profile");
+      const email = e.email ?? legacy?.email;
+      return [{ name, email: email ? String(email) : undefined }];
     });
     if (profiles.length === 0) {
       throw new Error("The export file contains no profiles.");
     }
     return { path: filePath, profiles, encrypted };
   }
+
   async importProfilesFrom(filePath: string, passphrase?: string): Promise<ProfileExportResult> {
-    // Re-validate before writing \u2014 defence against calling importProfilesFrom without a prior preview.
-    let raw: unknown;
+    // Re-validate before writing — defence against calling importProfilesFrom without a prior preview.
+    let bundle: RawExportBundle | undefined;
     try {
-      raw = await readBundleFile<unknown>(filePath, passphrase);
+      bundle = await readBundleFile<RawExportBundle>(filePath, passphrase);
     } catch (err) {
       if (err instanceof BundlePassphraseRequiredError) {
         throw err;
       }
       throw err instanceof Error ? err : new Error("Could not read the selected file.");
     }
-    const bundle = raw as Record<string, unknown>;
-    if (!bundle || (bundle["exportedBy"] !== "relay" && bundle["exportedBy"] !== "codex-manager") || !Array.isArray(bundle["profiles"])) {
+    if (!bundle || (bundle.exportedBy !== "relay" && bundle.exportedBy !== "codex-manager") || !Array.isArray(bundle.profiles)) {
       throw new Error("This file doesn't look like a Relay export.");
     }
     let count = 0;
-    for (const entry of (bundle["profiles"] as unknown[])) {
-      if (!entry || typeof entry !== "object") continue;
+    for (const e of bundle.profiles) {
+      if (!e) continue;
       // Support both the new v2 shape and the old v1 shape (which had a nested manifest).
-      const e = entry as Record<string, unknown>;
-      const legacy = (e["manifest"] && typeof e["manifest"] === "object")
-        ? e["manifest"] as Record<string, unknown>
-        : null;
-      const name = String((e["name"] ?? legacy?.["name"]) || "Imported Codex profile");
-      const email = typeof (e["email"] ?? legacy?.["email"]) === "string"
-        ? String(e["email"] ?? legacy?.["email"])
-        : undefined;
-      const createdAt = String(e["createdAt"] ?? legacy?.["createdAt"] ?? new Date().toISOString());
+      const legacy = e.manifest;
+      const name = String((e.name ?? legacy?.name) || "Imported Codex profile");
+      const email = e.email ?? legacy?.email;
+      const createdAt = String(e.createdAt ?? legacy?.createdAt ?? new Date().toISOString());
       // Generate a stable but unique profile id for the target store.
       const id = createProfileId(name);
       const profilePath = this.profilePath(id);
       await fs.rm(profilePath, { recursive: true, force: true });
       await fs.mkdir(profilePath, { recursive: true });
-      // Restore auth.json \u2014 write encrypted so the imported profile is
+      // Restore auth.json — write encrypted so the imported profile is
       // immediately protected by the same OS keychain as native profiles.
-      const authJsonText = typeof e["authJson"] === "string" ? e["authJson"] : null;
+      const authJsonText = e.authJson ?? null;
       if (authJsonText !== null) {
         const agentDir = path.join(profilePath, "codex-agent");
         await fs.mkdir(agentDir, { recursive: true });
@@ -817,13 +835,13 @@ export class ProfileStore {
       await this.writeManifest({
         id,
         name,
-        email,
+        email: email ? String(email) : undefined,
         createdAt,
         updatedAt: new Date().toISOString()
       });
       count += 1;
     }
-    // Do NOT auto-activate any profile \u2014 all imported profiles start as READY.
+    // Do NOT auto-activate any profile — all imported profiles start as READY.
     // The user activates one explicitly by clicking USE.
     await this.settingsStore.update((settings) => {
       delete settings.activeProfileId;
@@ -831,7 +849,12 @@ export class ProfileStore {
     return { path: filePath, count };
   }
   async openProfileFolder(input: ProfileActionInput): Promise<void> {
-    await shell.openPath(this.profilePath(input.profileId));
+    const target = this.profilePath(input.profileId);
+    if (customOpenPath) {
+      await customOpenPath(target);
+      return;
+    }
+    await shell.openPath(target);
   }
   getProfilePath(input: ProfileActionInput): string {
     return this.profilePath(input.profileId);
@@ -908,7 +931,7 @@ export class ProfileStore {
       storedPath: path.join(profilePath, agentRoot.profileFolder, "config.toml")
     };
   }
-  private async buildSharedCodexProjectState(definition: AppDefinition, profilePath: string): Promise<Record<string, unknown> | undefined> {
+  private async buildSharedCodexProjectState(definition: AppDefinition, profilePath: string): Promise<CodexGlobalState | undefined> {
     const paths = this.codexGlobalStatePaths(definition, profilePath);
     if (!paths) {
       return undefined;
@@ -920,7 +943,8 @@ export class ProfileStore {
     }
     return mergeSharedProjectState(targetState, liveState);
   }
-  private async writeSharedCodexProjectState(definition: AppDefinition, profilePath: string, state: Record<string, unknown>): Promise<void> {
+
+  private async writeSharedCodexProjectState(definition: AppDefinition, profilePath: string, state: CodexGlobalState): Promise<void> {
     const paths = this.codexGlobalStatePaths(definition, profilePath);
     if (!paths) {
       return;
@@ -931,6 +955,7 @@ export class ProfileStore {
     await fs.mkdir(path.dirname(paths.storedPath), { recursive: true });
     await fs.writeFile(paths.storedPath, content, "utf8");
   }
+
   private async buildSharedCodexPluginConfig(definition: AppDefinition, profilePath: string): Promise<string | undefined> {
     const paths = this.codexConfigPaths(definition, profilePath);
     if (!paths) {
@@ -943,6 +968,7 @@ export class ProfileStore {
     }
     return mergeSharedPluginConfig(targetConfig, liveConfig);
   }
+
   private async writeSharedCodexPluginConfig(definition: AppDefinition, profilePath: string, config: string): Promise<void> {
     const paths = this.codexConfigPaths(definition, profilePath);
     if (!paths) {
@@ -953,6 +979,7 @@ export class ProfileStore {
     await fs.mkdir(path.dirname(paths.storedPath), { recursive: true });
     await fs.writeFile(paths.storedPath, config, "utf8");
   }
+
   private async runSwitchStep<T>(step: string, context: string, action: () => Promise<T>): Promise<T> {
     console.info(`[Relay switch] ${context}: ${step}...`);
     try {
@@ -965,13 +992,16 @@ export class ProfileStore {
       throw new Error(`Switch failed while ${step}: ${detail}`);
     }
   }
+
   private async readManifest(profileId: string): Promise<ProfileManifest | undefined> {
     try {
+      // SAFETY: JSON parsed from manifest file adheres to ProfileManifest interface
       return JSON.parse(await fs.readFile(this.manifestPath(profileId), "utf8")) as ProfileManifest;
     } catch {
       return undefined;
     }
   }
+
   private async requireManifest(profileId: string): Promise<ProfileManifest> {
     const manifest = await this.readManifest(profileId);
     if (!manifest) {
@@ -979,13 +1009,16 @@ export class ProfileStore {
     }
     return manifest;
   }
+
   private async readPendingCapture(captureId: string): Promise<PendingCapture> {
     try {
+      // SAFETY: JSON parsed from pending capture metadata file matches PendingCapture shape
       return JSON.parse(await fs.readFile(this.pendingMetadataPath(captureId), "utf8")) as PendingCapture;
     } catch {
       throw new Error("Login capture was not found. Please add the account again.");
     }
   }
+
   private async readProfileAuthJson(profileId: string): Promise<CodexAuthJson | undefined> {
     const authPath = path.join(this.profilePath(profileId), "codex-agent", "auth.json");
     const exists = await fs.access(authPath).then(() => true).catch(() => false);
@@ -993,6 +1026,7 @@ export class ProfileStore {
     const text = await readAuthFile(authPath);
     if (!text) return undefined;
     try {
+      // SAFETY: decrypted auth.json contents match CodexAuthJson structure
       return JSON.parse(text) as CodexAuthJson;
     } catch {
       return undefined;
@@ -1154,14 +1188,31 @@ function shouldPreferProfile(candidate: ProfileSummary, current: ProfileSummary)
 function timestampForPath(value: string): string {
   return value.replace(/[:.]/g, "-");
 }
-async function readJsonObject(filePath: string): Promise<Record<string, unknown>> {
+export interface CodexGlobalState {
+  "electron-saved-workspace-roots"?: string[];
+  "active-workspace-roots"?: string[];
+  "project-order"?: string[];
+  "projectless-thread-ids"?: string[];
+  "electron-completed-local-data-migration-ids"?: string[];
+  "electron-workspace-root-labels"?: Record<string, string>;
+  "thread-workspace-root-hints"?: Record<string, string>;
+  "local-projects"?: Record<string, string>;
+  "thread-project-assignments"?: Record<string, string>;
+  "thread-writable-roots"?: Record<string, string>;
+  "selected-project"?: string;
+}
+
+async function readJsonObject(filePath: string): Promise<CodexGlobalState> {
   try {
-    const parsed = JSON.parse(await fs.readFile(filePath, "utf8")) as unknown;
-    return isPlainRecord(parsed) ? parsed : {};
+    const raw = await fs.readFile(filePath, "utf8");
+    // SAFETY: JSON parsed from Codex global state file is cast to CodexGlobalState interface
+    const parsed = JSON.parse(raw) as CodexGlobalState;
+    return parsed ? parsed : {};
   } catch {
     return {};
   }
 }
+
 async function readTextFile(filePath: string): Promise<string> {
   try {
     return await fs.readFile(filePath, "utf8");
@@ -1169,7 +1220,8 @@ async function readTextFile(filePath: string): Promise<string> {
     return "";
   }
 }
-function hasSharedProjectState(state: Record<string, unknown>): boolean {
+
+function hasSharedProjectState(state: CodexGlobalState): boolean {
   return [
     ...SHARED_GLOBAL_STATE_ARRAY_KEYS,
     ...SHARED_GLOBAL_STATE_STRING_RECORD_KEYS,
@@ -1177,9 +1229,11 @@ function hasSharedProjectState(state: Record<string, unknown>): boolean {
     ...SHARED_GLOBAL_STATE_LIVE_OVERRIDE_KEYS
   ].some((key) => state[key] !== undefined);
 }
+
 function hasSharedPluginConfig(config: string): boolean {
   return extractTomlSections(config).some((section) => isSharedPluginSection(section.name));
 }
+
 function mergeSharedPluginConfig(targetConfig: string, liveConfig: string): string {
   const target = splitTomlSections(targetConfig);
   const liveSections = extractTomlSections(liveConfig).filter((section) => isSharedPluginSection(section.name));
@@ -1208,11 +1262,17 @@ function mergeSharedPluginConfig(targetConfig: string, liveConfig: string): stri
   }
   return `${base}\n\n${sharedText}\n`;
 }
+
 interface TomlSection {
   name: string;
   text: string;
 }
-function splitTomlSections(config: string): { nonSharedText: string } {
+
+interface SplitTomlResult {
+  nonSharedText: string;
+}
+
+function splitTomlSections(config: string): SplitTomlResult {
   const sections = extractTomlSections(config);
   let cursor = 0;
   let nonSharedText = "";
@@ -1227,6 +1287,7 @@ function splitTomlSections(config: string): { nonSharedText: string } {
   nonSharedText += config.slice(cursor);
   return { nonSharedText };
 }
+
 function extractTomlSections(config: string): Array<TomlSection & { start: number; end: number }> {
   const headerPattern = /^\s*\[([^\]\r\n]+)\]\s*$/gm;
   const headers: Array<{ name: string; start: number }> = [];
@@ -1244,6 +1305,7 @@ function extractTomlSections(config: string): Array<TomlSection & { start: numbe
     };
   });
 }
+
 function isSharedPluginSection(sectionName: string): boolean {
   const normalized = sectionName.toLowerCase().trim();
   return (
@@ -1259,25 +1321,28 @@ function isSharedPluginSection(sectionName: string): boolean {
     normalized.startsWith("tools.")
   );
 }
-function mergeSharedProjectState(targetState: Record<string, unknown>, liveState: Record<string, unknown>): Record<string, unknown> {
-  const merged: Record<string, unknown> = { ...targetState };
+
+function mergeSharedProjectState(targetState: CodexGlobalState, liveState: CodexGlobalState): CodexGlobalState {
+  const merged: CodexGlobalState = { ...targetState };
   for (const key of SHARED_GLOBAL_STATE_ARRAY_KEYS) {
-    const values = mergeStringArrays(asStringArray(liveState[key]), asStringArray(targetState[key]));
+    const liveArr = liveState[key] ?? [];
+    const targetArr = targetState[key] ?? [];
+    const values = mergeStringArrays(liveArr, targetArr);
     if (values.length > 0) {
       merged[key] = values;
     }
   }
   for (const key of SHARED_GLOBAL_STATE_STRING_RECORD_KEYS) {
-    const targetMap = asStringRecord(targetState[key]);
-    const liveMap = asStringRecord(liveState[key]);
+    const targetMap = targetState[key] ?? {};
+    const liveMap = liveState[key] ?? {};
     const values = { ...targetMap, ...liveMap };
     if (Object.keys(values).length > 0) {
       merged[key] = values;
     }
   }
   for (const key of SHARED_GLOBAL_STATE_ANY_RECORD_KEYS) {
-    const targetMap = asAnyRecord(targetState[key]);
-    const liveMap = asAnyRecord(liveState[key]);
+    const targetMap = targetState[key] ?? {};
+    const liveMap = liveState[key] ?? {};
     const values = { ...targetMap, ...liveMap };
     if (Object.keys(values).length > 0) {
       merged[key] = values;
@@ -1288,21 +1353,9 @@ function mergeSharedProjectState(targetState: Record<string, unknown>, liveState
       merged[key] = liveState[key];
     }
   }
-  // Preserve keys from liveState that are not in targetState and not part of
-  // the shared-project-state contract. Newer versions of Codex may add fields
-  // (e.g. activeProfileId, session flags) that are needed for startup; losing
-  // them causes Codex to prompt for re-login on restart.
-  for (const key of Object.keys(liveState)) {
-    const isShared = (SHARED_GLOBAL_STATE_ARRAY_KEYS as readonly string[]).includes(key) ||
-      (SHARED_GLOBAL_STATE_STRING_RECORD_KEYS as readonly string[]).includes(key) ||
-      (SHARED_GLOBAL_STATE_ANY_RECORD_KEYS as readonly string[]).includes(key) ||
-      (SHARED_GLOBAL_STATE_LIVE_OVERRIDE_KEYS as readonly string[]).includes(key);
-    if (!isShared && !(key in merged)) {
-      merged[key] = liveState[key];
-    }
-  }
   return merged;
 }
+
 function mergeStringArrays(primary: string[], secondary: string[]): string[] {
   const seen = new Set<string>();
   const merged: string[] = [];
@@ -1315,27 +1368,7 @@ function mergeStringArrays(primary: string[], secondary: string[]): string[] {
   }
   return merged;
 }
-function asStringArray(value: unknown): string[] {
-  return Array.isArray(value)
-    ? value.filter((item): item is string => typeof item === "string" && item.length > 0)
-    : [];
-}
-function asStringRecord(value: unknown): Record<string, string> {
-  if (!isPlainRecord(value)) {
-    return {};
-  }
-  return Object.fromEntries(Object.entries(value).filter((entry): entry is [string, string] => typeof entry[1] === "string"));
-}
 
-function asAnyRecord(value: unknown): Record<string, unknown> {
-  if (!isPlainRecord(value)) {
-    return {};
-  }
-  return value;
-}
-function isPlainRecord(value: unknown): value is Record<string, unknown> {
-  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
-}
 async function hardenDirectoryBestEffort(storageRoot: string): Promise<void> {
   if (process.platform !== "win32") {
     return;
@@ -1346,6 +1379,7 @@ async function hardenDirectoryBestEffort(storageRoot: string): Promise<void> {
     // Directory hardening is best effort.
   }
 }
+
 function poolStatusesFromSnapshot(snapshot: UsageSnapshot): Record<string, AvailabilityStatus> | undefined {
   if (!snapshot.pools?.length) {
     return undefined;
@@ -1359,6 +1393,7 @@ function poolStatusesFromSnapshot(snapshot: UsageSnapshot): Record<string, Avail
     return [pool.id, status];
   }));
 }
+
 function becameAvailable(previous: AvailabilityState | undefined, after: string, usage: UsageSnapshot): boolean {
   if ((previous?.status ?? "unknown") === "at_limit" && after === "available") {
     return true;
@@ -1371,11 +1406,12 @@ function becameAvailable(previous: AvailabilityState | undefined, after: string,
     return previous?.poolStatuses?.[poolId] === "at_limit" && nextStatus === "available";
   });
 }
+
 function shouldAutoSwitch(usage: UsageSnapshot | undefined, thresholdPercent: number): boolean {
   if (!usage || usage.status !== "available") {
     return true;
   }
-  if (usage.pools?.some((pool) => pool.status === "exhausted" || (typeof pool.remaining === "number" && pool.remaining <= 0))) {
+  if (usage.pools?.some((pool) => pool.status === "exhausted" || (Number.isFinite(pool.remaining) && (pool.remaining ?? 0) <= 0))) {
     return true;
   }
   const primary = primaryPool(usage);
@@ -1386,24 +1422,29 @@ function shouldAutoSwitch(usage: UsageSnapshot | undefined, thresholdPercent: nu
   }
   return (remaining / limit) * 100 <= thresholdPercent;
 }
+
 function isReady(usage: UsageSnapshot | undefined, thresholdPercent: number): boolean {
   return Boolean(usage && usage.status === "available" && !shouldAutoSwitch(usage, thresholdPercent));
 }
+
 async function readAuthJson(authPath: string): Promise<CodexAuthJson | undefined> {
   const text = await readAuthFile(authPath);
   if (!text) return undefined;
   try {
+    // SAFETY: decrypted auth.json payload matches CodexAuthJson interface
     return JSON.parse(text) as CodexAuthJson;
   } catch {
     return undefined;
   }
 }
+
 const LIVE_AUTH_MAGIC = Buffer.from("CMENC1:", "ascii");
+
 /**
  * Reads the live Codex auth.json WITHOUT auto-encrypting it.
  *
  * Unlike {@link readAuthJson} (which calls readAuthFile and triggers an
- * opportunistic plaintext\u2192encrypted migration), this ensures the file
+ * opportunistic plaintext→encrypted migration), this ensures the file
  * remains plain text so Codex can read it.
  *
  * Also remediates files that were previously corrupted by the auto-encrypt
@@ -1420,61 +1461,61 @@ async function readLiveAuthJson(authPath: string): Promise<CodexAuthJson | undef
   let text: string;
   if (raw.length > LIVE_AUTH_MAGIC.length && raw.slice(0, LIVE_AUTH_MAGIC.length).equals(LIVE_AUTH_MAGIC)) {
     if (!isEncryptionAvailable()) {
-      console.warn(`[profileStore] safeStorage unavailable \u2014 cannot decrypt live auth.json: ${authPath}`);
+      console.warn(`[profileStore] safeStorage unavailable — cannot decrypt live auth.json: ${authPath}`);
       return undefined;
     }
     try {
-      text = safeStorage.decryptString(raw.slice(LIVE_AUTH_MAGIC.length));
+      text = decryptKeychainBuffer(raw.slice(LIVE_AUTH_MAGIC.length));
     } catch (err) {
       console.error(`[profileStore] decryption failed for live auth.json: ${authPath}`, err);
       return undefined;
     }
-    await fs.writeFile(authPath, text, "utf8").catch((error: unknown) => {
+    try {
+      await fs.writeFile(authPath, text, "utf8");
+    } catch (error) {
       console.warn(`[profileStore] could not rewrite live auth.json as plain text: ${authPath}`, error);
-    });
+    }
   } else {
     text = raw.toString("utf8");
   }
   try {
+    // SAFETY: live auth text parsed conforms to CodexAuthJson interface
     const parsed = JSON.parse(text) as CodexAuthJson;
-    if (parsed && typeof parsed === "object") {
+    if (parsed) {
       return parsed;
     }
   } catch {
-    // Not valid JSON \u2014 fall back to readAuthFile for legacy decryption support
+    // Not valid JSON — fall back to readAuthFile for legacy decryption support
     // (e.g. legacy-encrypted files without the CMENC1 magic prefix).
   }
   const fallbackText = await readAuthFile(authPath, { skipAutoEncrypt: true });
   if (!fallbackText) return undefined;
   try {
+    // SAFETY: fallback readAuthFile payload conforms to CodexAuthJson interface
     const parsed = JSON.parse(fallbackText) as CodexAuthJson;
-    return parsed && typeof parsed === "object" ? parsed : undefined;
+    return parsed ? parsed : undefined;
   } catch {
     return undefined;
   }
 }
-function findEmailInText(value: string): string | undefined {
-  return value.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i)?.[0];
-}
-function findAvatarUrl(value: unknown): string | undefined {
-  if (!value || typeof value !== "object") {
-    return undefined;
+
+function findAvatarUrl(authJson: CodexAuthJson): string | undefined {
+  if (authJson.account?.avatar_url && /^https?:\/\//i.test(authJson.account.avatar_url)) {
+    return authJson.account.avatar_url;
   }
-  const record = value as Record<string, unknown>;
-  for (const key of ["avatar_url", "avatarUrl", "picture", "image", "photo_url", "photoUrl"]) {
-    const candidate = record[key];
-    if (typeof candidate === "string" && /^https?:\/\//i.test(candidate)) {
-      return candidate;
-    }
-  }
-  for (const nested of Object.values(record)) {
-    const next = findAvatarUrl(nested);
-    if (next) {
-      return next;
+  const idToken = authJson.tokens?.id_token;
+  if (idToken) {
+    const claims = parseJwtPayload(idToken);
+    if (claims) {
+      const candidate = claims.picture ?? claims.avatar_url ?? claims.avatarUrl ?? claims.image ?? claims.photo_url ?? claims.photoUrl;
+      if (candidate && /^https?:\/\//i.test(candidate)) {
+        return candidate;
+      }
     }
   }
   return undefined;
 }
+
 function normalizeDisplayName(name: string, email?: string): string {
   const trimmed = name.trim();
   if (!trimmed) {
@@ -1485,6 +1526,7 @@ function normalizeDisplayName(name: string, email?: string): string {
   }
   return trimmed;
 }
+
 function findEmailFromIdToken(authJson: CodexAuthJson): string | undefined {
   const idToken = authJson.tokens?.id_token;
   if (!idToken) {
@@ -1496,21 +1538,25 @@ function findEmailFromIdToken(authJson: CodexAuthJson): string | undefined {
   }
   return findEmail(payload);
 }
+
 function isTokenExpired(authJson: CodexAuthJson): boolean {
   const idToken = authJson.tokens?.id_token;
   if (!idToken) return false;
   const payload = parseJwtPayload(idToken);
   if (!payload) return false;
-  const exp = payload["exp"];
-  if (typeof exp !== "number" || !Number.isFinite(exp)) return false;
+  const exp = Number(payload["exp"]);
+  if (!Number.isFinite(exp)) return false;
   return Date.now() / 1000 >= exp;
 }
+
 function isTokenPermanentlyExpired(authJson: CodexAuthJson): boolean {
   return isTokenExpired(authJson) && !authJson.tokens?.refresh_token;
 }
+
 function uniqueStrings(values: string[]): string[] {
   return [...new Set(values)];
 }
+
 function delay(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }

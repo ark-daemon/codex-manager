@@ -2,7 +2,9 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   AppState,
   ProfileActionInput,
+  ProfileExportResult,
   ProfileImportPreview,
+  ProfileLoginCapture,
   ProfileSummary,
   SettingsUpdateInput,
   StatusMessage
@@ -24,15 +26,17 @@ import { StatusToast } from "./components/StatusToast";
 import { ImportPreviewModal } from "./components/ImportPreviewModal";
 import { LoginCaptureModal } from "./components/LoginCaptureModal";
 import { PromptModal, type PromptModalConfig } from "./components/PromptModal";
+
 type View = "accounts" | "settings";
 type LoginFlowStatus = "idle" | "ready" | "waiting" | "error" | "saved";
+
 interface LoginModalState {
   open: boolean;
   captureId?: string;
   authorizationUrl?: string;
   status: LoginFlowStatus;
   message?: string;
-  capture?: any;
+  capture?: ProfileLoginCapture;
   profileName?: string;
 }
 export function App() {
@@ -121,7 +125,7 @@ export function App() {
     window.profileSwitcher?.setTheme?.(resolvedTheme);
   }, [state?.settings.theme]);
   useEffect(() => {
-    if (typeof window === "undefined") {
+    if (!globalThis.window) {
       return;
     }
     function handlePseudoLocaleShortcut(event: KeyboardEvent) {
@@ -200,8 +204,13 @@ export function App() {
     setMessage(undefined);
     try {
       const result = await action();
-      if (result && typeof result === "object" && "count" in result && (result as { count: number }).count === 0) {
-        return;
+      // SAFETY: checking optional count field on action result
+      if (result && Number.isFinite((result as { count?: number }).count)) {
+        // SAFETY: verified count property is a finite number
+        const count = (result as { count: number }).count;
+        if (count === 0) {
+          return;
+        }
       }
       const customHandled = await after?.(result);
       if (customHandled !== true) {
@@ -480,9 +489,9 @@ export function App() {
           return;
         }
         setPromptModal(null);
-        await runAction(copy.messages.exportProfiles, () => api.exportProfiles({ passphrase: pass.trim() }), (result) => {
-          if (result && typeof result === "object" && "count" in result && (result as { count: number }).count > 0) {
-            const count = (result as { count: number }).count;
+        await runAction(copy.messages.exportProfiles, () => api.exportProfiles({ passphrase: pass.trim() }), (result: ProfileExportResult) => {
+          if (result && Number.isFinite(result.count) && result.count > 0) {
+            const count = result.count;
             const template = count === 1 ? copy.messages.exported : copy.messages.exportedPlural;
             setMessage({ kind: "success", text: formatMessage(template, { count }) });
             return true;

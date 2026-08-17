@@ -32,6 +32,7 @@ describe("Codex profile mirror", () => {
     });
 
     await expect(fs.readFile(path.join(tempDir, ".codex", "profiles", "person-example-com-chatgpt.json"), "utf8")).resolves.toContain("refresh-token");
+    // SAFETY: profiles.json index matches expected array structure
     const index = JSON.parse(await fs.readFile(path.join(tempDir, ".codex", "profiles.json"), "utf8")) as { profiles: Array<{ email: string; file: string }> };
     expect(index.profiles).toEqual([
       expect.objectContaining({

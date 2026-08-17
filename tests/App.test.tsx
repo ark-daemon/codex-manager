@@ -207,13 +207,14 @@ describe("App", () => {
  expect(await screen.findByRole("status")).toHaveTextContent("Backup profile finished.");
  });
  it("renames a profile through inline editing", async () => {
- const renamedState = await api.getState();
- api.renameProfile = vi.fn(async () => ({
- ...renamedState,
- profiles: renamedState.profiles.map((profile) => (
- profile.id === "codex-1" ? { ...profile, name: "Renamed Work" } : profile
- ))
- })) as ProfileSwitcherApi["renameProfile"];
+    const renamedState = await api.getState();
+    // SAFETY: mocking renameProfile method on ProfileSwitcherApi
+    api.renameProfile = vi.fn(async () => ({
+      ...renamedState,
+      profiles: renamedState.profiles.map((profile) => (
+        profile.id === "codex-1" ? { ...profile, name: "Renamed Work" } : profile
+      ))
+    })) as ProfileSwitcherApi["renameProfile"];
  const promptSpy = vi.spyOn(window, "prompt");
  render(<App />);
  fireEvent.click(await screen.findByRole("button", { name: /rename/i }));
@@ -287,6 +288,7 @@ describe("App", () => {
  weekly: { remaining: 10, limit: 100 },
  pools: [{ id: "codex-weekly", label: "Weekly", status: "available", remaining: 10, limit: 100 }]
  }));
+ // SAFETY: mocking getState method on ProfileSwitcherApi
  window.profileSwitcher.getState = vi.fn(async () => refreshedState) as ProfileSwitcherApi["getState"];
  render(<App />);
  const refreshButton = await screen.findByTitle("Refresh all quotas");

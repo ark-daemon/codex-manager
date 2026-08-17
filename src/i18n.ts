@@ -8,23 +8,25 @@ function pseudoLocalizeText(value: string): string {
   return `[${value}${value.slice(0, extensionLength)}]`;
 }
 
-function pseudoLocalizeCopy<T>(value: T): T {
-  if (typeof value === "string") {
-    return pseudoLocalizeText(value) as T;
+type TranslationLeaf = string;
+type TranslationSection = Record<string, TranslationLeaf>;
+type TranslationDictionary = Record<string, TranslationSection>;
+
+function pseudoLocalizeCopy<T extends TranslationDictionary>(dict: T): T {
+  const result: TranslationDictionary = {};
+  for (const [sectionKey, section] of Object.entries(dict)) {
+    const localizedSection: TranslationSection = {};
+    for (const [key, text] of Object.entries(section)) {
+      localizedSection[key] = pseudoLocalizeText(text);
+    }
+    result[sectionKey] = localizedSection;
   }
-  if (Array.isArray(value)) {
-    return value.map((item) => pseudoLocalizeCopy(item)) as T;
-  }
-  if (value && typeof value === "object") {
-    return Object.fromEntries(
-      Object.entries(value).map(([key, item]) => [key, pseudoLocalizeCopy(item)])
-    ) as T;
-  }
-  return value;
+  // SAFETY: dictionary shape is identical with localized leaf strings
+  return result as T;
 }
 
 export function readPseudoLocaleEnabled(): boolean {
-  return typeof window !== "undefined" && window.localStorage.getItem(PSEUDO_LOCALE_STORAGE_KEY) === "1";
+  return globalThis.window !== undefined && globalThis.window.localStorage.getItem(PSEUDO_LOCALE_STORAGE_KEY) === "1";
 }
 
 /** Replace `{name}` placeholders in a translated template string. */

@@ -340,7 +340,7 @@ function resolveAppDataBase(env: NodeJS.ProcessEnv, homeDir: string): string {
   if (fromElectron) {
     return fromElectron;
   }
-  if (typeof env.APPDATA === "string" && env.APPDATA.trim()) {
+  if (env.APPDATA && env.APPDATA.trim()) {
     return env.APPDATA;
   }
 
@@ -359,7 +359,7 @@ function resolveLocalAppDataBase(env: NodeJS.ProcessEnv, homeDir: string, appDat
   }
 
   const fromEnv = env.LOCALAPPDATA;
-  if (typeof fromEnv === "string" && fromEnv.trim()) {
+  if (fromEnv && fromEnv.trim()) {
     return fromEnv;
   }
   return path.join(homeDir, "AppData", "Local");
@@ -367,6 +367,7 @@ function resolveLocalAppDataBase(env: NodeJS.ProcessEnv, homeDir: string, appDat
 
 function getElectronPath(name: "home" | "appData"): string | undefined {
   try {
+    // SAFETY: electron module export provides app.getPath when running inside Electron main runtime
     const electron = require("electron") as { app?: { getPath: (pathName: "home" | "appData") => string } };
     return electron.app?.getPath(name);
   } catch {

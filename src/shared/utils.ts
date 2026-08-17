@@ -1,6 +1,24 @@
 import type { QuotaPool, UsageSnapshot } from "./types.js";
 
-export function parseJwtPayload(token: string): Record<string, unknown> | undefined {
+export interface JwtClaims {
+  email?: string;
+  account_email?: string;
+  accountEmail?: string;
+  exp?: number;
+  picture?: string;
+  avatar_url?: string;
+  avatarUrl?: string;
+  image?: string;
+  photo_url?: string;
+  photoUrl?: string;
+  account_id?: string;
+  accountId?: string;
+  chatgpt_account_id?: string;
+  chatgptAccountId?: string;
+  "https://api.openai.com/auth"?: Record<string, string | number | boolean | null | undefined>;
+}
+
+export function parseJwtPayload(token: string): JwtClaims | undefined {
   const [, payload] = token.split(".");
   if (!payload) {
     return undefined;
@@ -9,7 +27,9 @@ export function parseJwtPayload(token: string): Record<string, unknown> | undefi
   try {
     const normalized = payload.replace(/-/g, "+").replace(/_/g, "/");
     const padded = `${normalized}${"=".repeat((4 - normalized.length % 4) % 4)}`;
-    return JSON.parse(Buffer.from(padded, "base64").toString("utf8")) as Record<string, unknown>;
+    // SAFETY: JSON object decoded from base64 JWT payload satisfies JwtClaims interface
+    const parsed = JSON.parse(Buffer.from(padded, "base64").toString("utf8")) as JwtClaims;
+    return parsed ? parsed : undefined;
   } catch {
     return undefined;
   }
@@ -19,21 +39,13 @@ export function isEmail(value: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 }
 
-export function findEmail(value: unknown): string | undefined {
-  if (!value || typeof value !== "object") {
+export function findEmail(value?: JwtClaims | null): string | undefined {
+  if (!value) {
     return undefined;
   }
-  const record = value as Record<string, unknown>;
-  for (const key of ["email", "account_email", "accountEmail"]) {
-    const candidate = record[key];
-    if (typeof candidate === "string" && isEmail(candidate)) {
+  for (const candidate of [value.email, value.account_email, value.accountEmail]) {
+    if (candidate && isEmail(candidate)) {
       return candidate;
-    }
-  }
-  for (const nested of Object.values(record)) {
-    const email = findEmail(nested);
-    if (email) {
-      return email;
     }
   }
   return undefined;
