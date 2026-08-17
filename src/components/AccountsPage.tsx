@@ -1,8 +1,8 @@
 import { useMemo, useState } from "react";
-import { Download, Import, Plus, RefreshCw, Search, Trash2, Upload, BarChart2, ChevronDown, ChevronUp, Filter } from "lucide-react";
+import { Download, Import, Plus, RefreshCw, Search, Trash2, Upload } from "lucide-react";
 import { AppState, ProfileSummary } from "../shared/types";
 import { copyForLanguage, formatMessage } from "../i18n";
-import { availablePools, buildStats, displayPrimaryLabel, formatResetCountdown, getAccountPlan, getBarColor, getUniquePlans, statusForProfile } from "../ui-utils";
+import { buildStats, getAccountPlan, getUniquePlans } from "../ui-utils";
 import { StatsBar } from "./StatsBar";
 import { AccountCard } from "./AccountCard";
 import { quotaPercent } from "../shared/utils";
@@ -65,7 +65,6 @@ export function AccountsPage({
   const [sortBy, setSortBy] = useState<SortOption>("remaining");
   const [filterStatus, setFilterStatus] = useState<FilterOption>("all");
   const [planFilter, setPlanFilter] = useState<string>("all");
-  const [showTimeline, setShowTimeline] = useState(false);
 
   const uniquePlans = useMemo(() => getUniquePlans(state.profiles), [state.profiles]);
 
@@ -82,62 +81,49 @@ export function AccountsPage({
   }
 
   const processedProfiles = useMemo(() => {
-    let list = [...state.profiles];
+    return state.profiles
+      .filter((profile) => {
+        // Status filter
+        if (filterStatus === "ready" && !profile.isActive && profile.usage?.status !== "available") return false;
+        if (filterStatus === "limited" && profile.usage?.status !== "unavailable") return false;
+        if (filterStatus === "active" && !profile.isActive) return false;
 
-    // 1. Search Filter
-    if (searchQuery.trim()) {
-      const query = searchQuery.toLowerCase().trim();
-      list = list.filter((p) =>
-        displayPrimaryLabel(p).toLowerCase().includes(query) ||
-        (p.email && p.email.toLowerCase().includes(query))
-      );
-    }
+        // Plan filter
+        if (planFilter !== "all") {
+          const plan = getAccountPlan(profile.usage);
+          if (!plan || plan.toLowerCase() !== planFilter.toLowerCase()) return false;
+        }
 
-    // 2. Status Filter
-    if (filterStatus !== "all") {
-      list = list.filter((p) => {
-        const st = statusForProfile(p);
-        if (filterStatus === "active") return p.isActive;
-        if (filterStatus === "ready") return st === "ready";
-        if (filterStatus === "limited") return st === "limited";
+        // Search query
+        if (searchQuery.trim()) {
+          const query = searchQuery.toLowerCase();
+          const matchName = profile.name.toLowerCase().includes(query);
+          const matchEmail = profile.email?.toLowerCase().includes(query);
+          if (!matchName && !matchEmail) return false;
+        }
+
         return true;
+      })
+      .sort((a, b) => {
+        if (sortBy === "name") {
+          return a.name.localeCompare(b.name);
+        }
+        if (sortBy === "readyFirst") {
+          const aReady = a.usage?.status === "available" ? 1 : 0;
+          const bReady = b.usage?.status === "available" ? 1 : 0;
+          return bReady - aReady;
+        }
+        if (sortBy === "lastUsed") {
+          const aTime = a.lastUsedAt ? new Date(a.lastUsedAt).getTime() : 0;
+          const bTime = b.lastUsedAt ? new Date(b.lastUsedAt).getTime() : 0;
+          return bTime - aTime;
+        }
+        // Default: "remaining" quota
+        const aPct = quotaPercent(a.usage) ?? -1;
+        const bPct = quotaPercent(b.usage) ?? -1;
+        return bPct - aPct;
       });
-    }
-
-    // 3. Plan Filter
-    if (planFilter !== "all") {
-      list = list.filter((p) => getAccountPlan(p).toLowerCase() === planFilter.toLowerCase());
-    }
-
-    // 4. Sorting (Pin Active Account first by default)
-    list.sort((a, b) => {
-      if (a.isActive !== b.isActive) {
-        return a.isActive ? -1 : 1;
-      }
-      if (sortBy === "remaining") {
-        const qA = quotaPercent(a.usage) ?? -1;
-        const qB = quotaPercent(b.usage) ?? -1;
-        return qB - qA;
-      }
-      if (sortBy === "name") {
-        return displayPrimaryLabel(a).localeCompare(displayPrimaryLabel(b));
-      }
-      if (sortBy === "lastUsed") {
-        const tA = a.updatedAt ? new Date(a.updatedAt).getTime() : 0;
-        const tB = b.updatedAt ? new Date(b.updatedAt).getTime() : 0;
-        return tB - tA;
-      }
-      if (sortBy === "readyFirst") {
-        const stA = statusForProfile(a);
-        const stB = statusForProfile(b);
-        if (stA === "ready" && stB !== "ready") return -1;
-        if (stB === "ready" && stA !== "ready") return 1;
-      }
-      return 0;
-    });
-
-    return list;
-  }, [state.profiles, searchQuery, filterStatus, planFilter, sortBy]);
+  }, [state.profiles, filterStatus, planFilter, searchQuery, sortBy]);
 
   return (
     <section className="panel accounts-panel">
@@ -150,8 +136,6 @@ export function AccountsPage({
         </div>
 
         <StatsBar stats={stats} copy={copy} />
-
-
       </header>
 
       {/* Main Controls Toolbar */}
@@ -201,7 +185,10 @@ export function AccountsPage({
           <div className="sort-dropdown-container">
             <select
               value={sortBy}
-              onChange={(e) => setSortBy(e.target.value as SortOption)}
+              onChange={(e) => {
+                // SAFETY: select options are restricted to valid SortOption string values
+                setSortBy(e.target.value as SortOption);
+              }}
               className="sort-select"
               aria-label="Sort accounts"
             >

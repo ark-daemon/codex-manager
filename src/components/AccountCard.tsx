@@ -92,7 +92,6 @@ export const AccountCard = memo(function AccountCard({
     : status === "ready" || status === "unknown" || !profile.usage
     ? "ready"
     : status;
-  const avatarInitial = getAvatarInitial(profile.name, profile.email);
 
   function handleSwitch(e: React.MouseEvent) {
     e.stopPropagation();
@@ -137,7 +136,7 @@ export const AccountCard = memo(function AccountCard({
     }
   }
 
-  function confirmRename(e: React.MouseEvent) {
+  function confirmRename(e: React.SyntheticEvent) {
     e.stopPropagation();
     if (newName.trim() && newName.trim() !== profile.name) {
       onRename(newName.trim());
@@ -145,7 +144,7 @@ export const AccountCard = memo(function AccountCard({
     setRenaming(false);
   }
 
-  function cancelRename(e: React.MouseEvent) {
+  function cancelRename(e: React.SyntheticEvent) {
     e.stopPropagation();
     setRenaming(false);
   }
@@ -216,8 +215,8 @@ export const AccountCard = memo(function AccountCard({
                 onChange={(e) => setNewName(e.target.value)}
                 autoFocus
                 onKeyDown={(e) => {
-                  if (e.key === "Enter") confirmRename(e as any);
-                  if (e.key === "Escape") cancelRename(e as any);
+                  if (e.key === "Enter") confirmRename(e);
+                  if (e.key === "Escape") cancelRename(e);
                 }}
               />
               <button className="confirm" onClick={confirmRename}>✓</button>

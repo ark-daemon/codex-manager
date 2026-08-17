@@ -464,33 +464,35 @@ describe("App", () => {
   });
 });
 function fakeApi(state: AppState): ProfileSwitcherApi {
- return {
- getState: vi.fn(async () => state),
- beginLoginCapture: vi.fn(async () => ({ captureId: "capture-1", suggestedName: "person@example.com", accountEmail: "person@example.com" })),
- startLoginCapture: vi.fn(async () => ({ captureId: "capture-1", authorizationUrl: "https://auth.openai.com/oauth/authorize" })),
- openLoginCapture: vi.fn(async () => undefined),
- waitLoginCapture: vi.fn(async () => ({ captureId: "capture-1", suggestedName: "person@example.com", accountEmail: "person@example.com" })),
- cancelLoginCapture: vi.fn(async () => undefined),
- createProfile: vi.fn(async () => state),
- syncCurrentProfile: vi.fn(async () => state),
- switchProfile: vi.fn(),
- backupProfile: vi.fn(async () => state),
- deleteProfile: vi.fn(async () => state),
- renameProfile: vi.fn(async () => state),
- refreshUsage: vi.fn(async () => ({ status: "unavailable" })),
- updateSettings: vi.fn(async () => state),
- updateServiceState: vi.fn(async () => state),
- exportProfiles: vi.fn(async () => ({ count: 1 })),
- importProfiles: vi.fn(async () => ({ count: 1 })),
- openProfileFolder: vi.fn(),
- openLogDirectory: vi.fn(),
- browseExecutable: vi.fn(async () => null),
- needsPassphrase: vi.fn(async () => false),
- unlock: vi.fn(async () => true),
- focusProfile: vi.fn(() => () => undefined),
- stateChanged: vi.fn(() => () => undefined),
- setTheme: vi.fn()
- } as unknown as ProfileSwitcherApi;
+  return {
+    getState: vi.fn(async () => state),
+    beginLoginCapture: vi.fn(async () => ({ captureId: "capture-1", suggestedName: "person@example.com", accountEmail: "person@example.com" })),
+    startLoginCapture: vi.fn(async () => ({ captureId: "capture-1", authorizationUrl: "https://auth.openai.com/oauth/authorize" })),
+    openLoginCapture: vi.fn(async () => undefined),
+    waitLoginCapture: vi.fn(async () => ({ captureId: "capture-1", suggestedName: "person@example.com", accountEmail: "person@example.com" })),
+    cancelLoginCapture: vi.fn(async () => undefined),
+    createProfile: vi.fn(async () => state),
+    syncCurrentProfile: vi.fn(async () => state),
+    switchProfile: vi.fn(async () => ({ previousActiveId: undefined, targetProfileId: "codex-1", status: "success" as const })),
+    backupProfile: vi.fn(async () => state),
+    deleteProfile: vi.fn(async () => state),
+    renameProfile: vi.fn(async () => state),
+    refreshUsage: vi.fn(async () => ({ status: "unavailable" })),
+    updateSettings: vi.fn(async () => state),
+    updateServiceState: vi.fn(async () => state),
+    exportProfiles: vi.fn(async () => ({ count: 1 })),
+    previewImport: vi.fn(async () => null),
+    confirmImport: vi.fn(async () => ({ count: 1 })),
+    openProfileFolder: vi.fn(async () => undefined),
+    openLogDirectory: vi.fn(async () => undefined),
+    browseExecutable: vi.fn(async () => null),
+    checkForUpdates: vi.fn(async () => "up-to-date"),
+    needsPassphrase: vi.fn(async () => false),
+    unlock: vi.fn(async () => true),
+    focusProfile: vi.fn(() => () => undefined),
+    stateChanged: vi.fn(() => () => undefined),
+    setTheme: vi.fn()
+  };
 }
 function stateWithUsage(usage: AppState["profiles"][number]["usage"]): AppState {
  return {

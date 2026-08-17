@@ -1,4 +1,4 @@
-import { copyFile, mkdir, stat } from "node:fs/promises";
+import { copyFile, mkdir } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -13,7 +13,7 @@ async function safeCopy(filename) {
     const src = path.join(sourceAssets, filename);
     const dst = path.join(outputAssets, filename);
     await copyFile(src, dst);
-  } catch (err) {
+  } catch {
     // Ignore missing optional assets
   }
 }
@@ -38,7 +38,7 @@ async function safeCopyBuild(filename) {
     const src = path.join(sourceBuild, filename);
     const dst = path.join(outputBuild, filename);
     await copyFile(src, dst);
-  } catch (err) {
+  } catch {
     // Ignore
   }
 }
