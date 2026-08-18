@@ -69,6 +69,9 @@
     "portable"
    ]
   },
+  "nsis": {
+   "artifactName": "${productName}-Setup-${version}.${ext}"
+  },
   "mac": {
    "icon": "assets/app-icon.icns",
    "target": [
