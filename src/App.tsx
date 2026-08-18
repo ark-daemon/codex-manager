@@ -618,8 +618,6 @@ export function App() {
               stats={stats}
               onCreateProfile={createProfile}
               onSyncFromApp={syncFromApp}
-              onExportProfiles={exportProfiles}
-              onImportProfiles={importProfiles}
               onRefreshAll={refreshAll}
               refreshingAll={refreshingAll}
               selectedAccountIds={selectedAccountIds}
@@ -641,6 +639,8 @@ export function App() {
               pseudoLocaleEnabled={pseudoLocaleEnabled}
               onSave={updateSettings}
               onOpenLogDirectory={openLogDirectory}
+              onExportProfiles={exportProfiles}
+              onImportProfiles={importProfiles}
             />
           )}
         </section>

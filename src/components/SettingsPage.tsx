@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef, useCallback } from "react";
-import { Moon, Sun } from "lucide-react";
+import { Import, Moon, Sun, Upload } from "lucide-react";
 import { AppState, SettingsUpdateInput } from "../shared/types";
 import { copyForLanguage } from "../i18n";
 import { clampNumber, clampPercent, getApi, prefersDarkMode } from "../ui-utils";
@@ -13,6 +13,8 @@ interface SettingsPageProps {
   pseudoLocaleEnabled: boolean;
   onSave: (input: SettingsUpdateInput) => Promise<void>;
   onOpenLogDirectory: () => Promise<void>;
+  onExportProfiles?: () => Promise<void>;
+  onImportProfiles?: () => Promise<void>;
 }
 
 export function SettingsPage({
@@ -20,7 +22,9 @@ export function SettingsPage({
   copy,
   pseudoLocaleEnabled,
   onSave,
-  onOpenLogDirectory
+  onOpenLogDirectory,
+  onExportProfiles,
+  onImportProfiles
 }: SettingsPageProps) {
   const [settingsTab, setSettingsTab] = useState<SettingsTab>("general");
   const [isCheckingUpdates, setIsCheckingUpdates] = useState(false);
@@ -273,6 +277,33 @@ export function SettingsPage({
                 {copy.settings.securityPlaintext}
               </p>
             )}
+          </section>
+
+          <section className="settings-panel">
+            <h3>{copy.settings.dataBackup}</h3>
+            <p style={{ fontSize: "12px", color: "var(--color-muted)", margin: "0 0 12px 0", lineHeight: "1.4" }}>
+              Export all accounts into an encrypted backup file, or restore accounts from an existing export.
+            </p>
+            <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+              {onExportProfiles && (
+                <button
+                  type="button"
+                  onClick={() => void onExportProfiles()}
+                  style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}
+                >
+                  <Upload size={14} /> {copy.actions.export}
+                </button>
+              )}
+              {onImportProfiles && (
+                <button
+                  type="button"
+                  onClick={() => void onImportProfiles()}
+                  style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}
+                >
+                  <Import size={14} /> {copy.actions.import}
+                </button>
+              )}
+            </div>
           </section>
 
           <section className="settings-panel settings-about-panel">

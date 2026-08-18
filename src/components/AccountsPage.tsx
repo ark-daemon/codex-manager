@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Download, Import, Plus, RefreshCw, Trash2, Upload } from "lucide-react";
+import { Download, Plus, RefreshCw, Trash2 } from "lucide-react";
 import { AppState, ProfileSummary } from "../shared/types";
 import { copyForLanguage, formatMessage } from "../i18n";
 import { buildStats, getAccountPlan, getUniquePlans } from "../ui-utils";
@@ -18,8 +18,6 @@ interface AccountsPageProps {
   stats: ReturnType<typeof buildStats>;
   onCreateProfile: () => Promise<void>;
   onSyncFromApp: () => Promise<void>;
-  onExportProfiles: () => Promise<void>;
-  onImportProfiles: () => Promise<void>;
   onRefreshAll: () => Promise<void>;
   refreshingAll: boolean;
   selectedAccountIds: Set<string>;
@@ -42,8 +40,6 @@ export function AccountsPage({
   stats,
   onCreateProfile,
   onSyncFromApp,
-  onExportProfiles,
-  onImportProfiles,
   onRefreshAll,
   refreshingAll,
   selectedAccountIds,
@@ -135,7 +131,12 @@ export function AccountsPage({
           <p>{copy.accounts.description}</p>
         </div>
 
-        <StatsBar stats={stats} copy={copy} />
+        <StatsBar
+          stats={stats}
+          copy={copy}
+          activeFilter={filterStatus}
+          onFilterChange={setFilterStatus}
+        />
       </header>
 
       {/* Main Controls Toolbar */}
@@ -149,14 +150,6 @@ export function AccountsPage({
             <Download size={15} /> {copy.actions.sync}
           </button>
 
-          <button aria-label={copy.messages.exportProfiles} title={copy.messages.exportProfiles} onClick={() => void onExportProfiles()}>
-            <Upload size={15} /> {copy.actions.export}
-          </button>
-
-          <button aria-label={copy.messages.importProfiles} title={copy.messages.importProfiles} onClick={() => void onImportProfiles()}>
-            <Import size={15} /> {copy.actions.import}
-          </button>
-
           <button aria-label={copy.accounts.refreshAllQuotas} title={copy.accounts.refreshAllQuotas} onClick={() => void onRefreshAll()} disabled={refreshingAll}>
             <RefreshCw className={refreshingAll ? "spin-icon" : undefined} size={15} /> {copy.actions.refresh}
           </button>
@@ -164,6 +157,17 @@ export function AccountsPage({
 
         {/* Filters & Sort */}
         <div className="toolbar-filters">
+          {filterStatus !== "all" && (
+            <button
+              type="button"
+              className="filter-reset-badge"
+              onClick={() => setFilterStatus("all")}
+              title="Clear status filter"
+            >
+              Filter: {filterStatus === "ready" ? "Ready" : "Rate Limited"} ×
+            </button>
+          )}
+
           {uniquePlans.length > 1 && (
             <div className="plan-dropdown-container">
               <select
@@ -200,9 +204,9 @@ export function AccountsPage({
           </div>
         </div>
 
-        {/* Contextual Multi-Select Controls */}
-        <div className="toolbar-right-actions">
-          {selectedCount > 0 && (
+        {/* Contextual Multi-Select Controls (shown when accounts are selected) */}
+        {selectedCount > 0 && (
+          <div className="toolbar-right-actions">
             <button 
               className="bulk-delete-button danger-action"
               aria-label={copy.messages.deleteSelected}
@@ -210,9 +214,7 @@ export function AccountsPage({
             >
               <Trash2 size={14} /> {copy.actions.delete} ({selectedCount})
             </button>
-          )}
-          
-          {state.profiles.length > 0 && (
+            
             <button 
               className="select-all-btn"
               aria-label={allSelected ? copy.actions.clearSelection : copy.actions.selectAll}
@@ -220,8 +222,8 @@ export function AccountsPage({
             >
               {allSelected ? copy.actions.clear : copy.actions.selectAll}
             </button>
-          )}
-        </div>
+          </div>
+        )}
       </div>
 
       {/* Account Cards Grid */}

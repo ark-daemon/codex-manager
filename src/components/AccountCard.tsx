@@ -45,8 +45,17 @@ export const AccountCard = memo(function AccountCard({
   const [newName, setNewName] = useState(profile.name);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [menuPos, setMenuPos] = useState<{ top: number; left: number } | null>(null);
+  const [, setTick] = useState(0);
   const menuRef = useRef<HTMLDivElement>(null);
   const menuButtonRef = useRef<HTMLButtonElement>(null);
+
+  // Re-render relative reset countdowns every 30 seconds
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setTick((t) => t + 1);
+    }, 30000);
+    return () => clearInterval(interval);
+  }, []);
 
   useEffect(() => {
     if (!menuOpen) {
@@ -163,18 +172,24 @@ export const AccountCard = memo(function AccountCard({
         }}
         onClick={(event) => event.stopPropagation()}
       >
+        <button onClick={() => { onMenuOpenChange(false); onRefresh(); }}>
+          <RefreshCw size={13} /> {copy.actions.refresh}
+        </button>
+        <button onClick={toggleRename}>
+          <Pencil size={13} /> {copy.actions.rename}
+        </button>
         <button onClick={() => { onMenuOpenChange(false); onBackup(); }}>
-          <Archive size={12} /> {copy.actions.backup}
+          <Archive size={13} /> {copy.actions.backup}
         </button>
         <button onClick={() => { onMenuOpenChange(false); onOpenFolder(); }}>
-          <FolderOpen size={12} /> {copy.actions.openFolder}
+          <FolderOpen size={13} /> {copy.actions.openFolder}
         </button>
         {!confirmDelete ? (
           <button
             className="danger menu-delete-row"
             onClick={() => setConfirmDelete(true)}
           >
-            <Trash2 size={12} /> {copy.actions.delete}
+            <Trash2 size={13} /> {copy.actions.delete}
           </button>
         ) : (
           <div className="card-menu-delete-confirm">
@@ -224,7 +239,13 @@ export const AccountCard = memo(function AccountCard({
               <button className="cancel" onClick={cancelRename}>✗</button>
             </div>
           ) : (
-            <h4 className="profile-display-name">{displayPrimaryLabel(profile)}</h4>
+            <h4
+              className="profile-display-name clickable-title"
+              onClick={toggleRename}
+              title="Click to rename"
+            >
+              {displayPrimaryLabel(profile)}
+            </h4>
           )}
           {profile.email && <span className="profile-email">{profile.email}</span>}
         </div>
@@ -321,30 +342,15 @@ export const AccountCard = memo(function AccountCard({
           </button>
         )}
         <div className="card-icon-actions">
-          <button
-            className="icon-action-btn"
-            onClick={(e) => { e.stopPropagation(); onRefresh(); }}
-            title={copy.actions.refresh}
-            aria-label={`Refresh ${displayPrimaryLabel(profile)}`}
-          >
-            <RefreshCw size={14} />
-          </button>
-          <button
-            className="icon-action-btn"
-            onClick={toggleRename}
-            title={copy.actions.rename}
-            aria-label={`Rename ${displayPrimaryLabel(profile)}`}
-          >
-            <Pencil size={14} />
-          </button>
           <div className="card-actions-menu">
             <button
               ref={menuButtonRef}
               className="icon-action-btn"
               onClick={handleMenuToggle}
               aria-label={`More actions for ${displayPrimaryLabel(profile)}`}
+              title="More actions"
             >
-              <MoreVertical size={14} />
+              <MoreVertical size={15} />
             </button>
             {menuPortal}
           </div>

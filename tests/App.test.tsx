@@ -215,10 +215,10 @@ describe("App", () => {
         profile.id === "codex-1" ? { ...profile, name: "Renamed Work" } : profile
       ))
     })) as ProfileSwitcherApi["renameProfile"];
- const promptSpy = vi.spyOn(window, "prompt");
- render(<App />);
- fireEvent.click(await screen.findByRole("button", { name: /rename/i }));
- const input = await screen.findByLabelText(/display name|profile name/i);
+    const promptSpy = vi.spyOn(window, "prompt");
+    render(<App />);
+    fireEvent.click(await screen.findByTitle(/click to rename/i));
+    const input = await screen.findByLabelText(/display name|profile name/i);
  fireEvent.change(input, { target: { value: "Renamed Work" } });
  fireEvent.keyDown(input, { key: "Enter" });
  await waitFor(() => expect(api.renameProfile).toHaveBeenCalledWith({ profileId: "codex-1", name: "Renamed Work" }));
